@@ -47,49 +47,7 @@ Download pre-built standalone binaries from [GitHub Releases](https://github.com
 
 ---
 
-## 🆓 Zero-Cost Testing Guide (100% Free AI Keys)
-
-You can run full multi-agent deliberations completely free without entering a credit card by using any of the following providers:
-
-### 1. Google Gemini API (Recommended — Very Fast & Free Tier)
-* **Website:** [Google AI Studio](https://aistudio.google.com/)
-* **Free Quota:** Generous free tier for `gemini-1.5-flash` and `gemini-1.5-pro`.
-* **Config (`.env`):**
-  ```bash
-  MELCHIOR_PROVIDER=gemini
-  MELCHIOR_API_KEY=AIzaSy...
-  MELCHIOR_MODEL=gemini-1.5-flash
-
-  BALTHASAR_PROVIDER=gemini
-  BALTHASAR_API_KEY=AIzaSy...
-  BALTHASAR_MODEL=gemini-1.5-flash
-
-  CASPER_PROVIDER=gemini
-  CASPER_API_KEY=AIzaSy...
-  CASPER_MODEL=gemini-1.5-flash
-  ```
-
-### 2. Groq Cloud (Ultra Low Latency — Free Tier)
-* **Website:** [Groq Console](https://console.groq.com/)
-* **Models:** `llama-3.3-70b-versatile`, `mixtral-8x7b-32768`.
-* **Config (`.env`):**
-  ```bash
-  MELCHIOR_PROVIDER=groq
-  MELCHIOR_API_KEY=gsk_...
-  MELCHIOR_MODEL=llama-3.3-70b-versatile
-  ```
-
-### 3. OpenRouter (Free Tier Models)
-* **Website:** [OpenRouter](https://openrouter.ai/)
-* **Models:** `meta-llama/llama-3.2-3b-instruct:free`, `google/gemini-2.0-flash-exp:free`.
-* **Config (`.env`):**
-  ```bash
-  BALTHASAR_PROVIDER=openrouter
-  BALTHASAR_API_KEY=sk-or-v1-...
-  BALTHASAR_MODEL=meta-llama/llama-3.2-3b-instruct:free
-  ```
-
-### 4. Fully Offline Simulation (`MOCK`)
+### Fully Offline Simulation (`MOCK`)
 To run without any internet access or API keys (ideal for CI/CD or smoke testing):
 ```bash
 MELCHIOR_PROVIDER=mock
