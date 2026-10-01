@@ -5,9 +5,10 @@
 [![CI](https://github.com/x-name15/magi-system/actions/workflows/ci.yml/badge.svg)](https://github.com/x-name15/magi-system/actions/workflows/ci.yml)
 [![CodeQL](https://github.com/x-name15/magi-system/actions/workflows/codeql.yml/badge.svg)](https://github.com/x-name15/magi-system/actions/workflows/codeql.yml)
 [![Release](https://img.shields.io/github/v/release/x-name15/magi-system?include_prereleases&label=release)](https://github.com/x-name15/magi-system/releases)
-[![License: GPL-3.0](https://img.shields.io/badge/License-GPL--3.0-blue.svg)](LICENSE)
+[![Rust](https://img.shields.io/badge/rust-1.90%2B-orange.svg)](https://www.rust-lang.org)
 [![SpacetimeDB](https://img.shields.io/badge/SpacetimeDB-Consensus-orange.svg)](https://spacetimedb.com)
 [![Docker](https://img.shields.io/badge/Docker-Ready-2496ED.svg)](docker-compose.yml)
+[![License: GPL-3.0](https://img.shields.io/badge/License-GPL--3.0-blue.svg)](LICENSE)
 
 > 🧪 **Project Spirit:** A personal, experimental playground built to research distributed multi-agent consensus algorithms combined with [SpacetimeDB](https://spacetimedb.com). It faithfully brings the iconic supercomputer MAGI from *Neon Genesis Evangelion* to life in your terminal.
 
@@ -106,7 +107,7 @@ Inside the console, you can query system status (`status`, `history`), or type f
 
 Deep dive into the architecture, configuration, and internal protocols:
 
-- **[Getting Started & Free AI Keys Guide](docs/guides/GETTING_STARTED.md):** Zero-cost setup with Google Gemini, Groq, OpenRouter, or offline `MOCK`.
+- **[Getting Started](docs/guides/GETTING_STARTED.md):** Setup and explanation of the offline `MOCK`.
 - **[The Evangelion Trinity & Debate Protocol](docs/architecture/TRINITY.md):** The three archetypes, 2-round cross-examination, and decision matrix.
 - **[System Architecture](docs/architecture/ARCHITECTURE.md):** SpacetimeDB transactional engine, WASM reducers, and multi-agent concurrency.
 - **[Operations Runbook](docs/guides/OPERATIONS.md):** Docker container lifecycle, volume persistence, and deployment.
