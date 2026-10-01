@@ -1,8 +1,8 @@
-name: MAGI-SYSTEM Release
+name: MAGI-System Release
 
 on:
   workflow_run:
-    workflows: ["MAGI-SYSTEM CI"]
+    workflows: ["MAGI-System CI"]
     types: [completed]
     branches: [main]
   push:

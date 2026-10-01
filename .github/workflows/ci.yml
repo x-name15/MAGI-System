@@ -1,10 +1,13 @@
-name: MAGI-SYSTEM CI
+name: MAGI-System CI
 
 on:
   push:
     branches: [main, "feature/*"]
   pull_request:
     branches: [main]
+
+permissions:
+  contents: read
 
 jobs:
   check-and-test:
