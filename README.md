@@ -1,4 +1,4 @@
-# MAGI System 🧠
+# MAGI System 
 
 **Tactical Multi-Agent Consensus Engine inspired by Neon Genesis Evangelion**
 
