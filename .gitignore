@@ -1,0 +1,30 @@
+# Rust target directory
+/target/
+**/*.rs.bk
+
+# Environment & credentials
+.env
+.env.local
+*.pem
+*.key
+
+# Local Test files
+deliberations/deliberation_*
+/proposals/
+test_idea.md
+
+
+# SpacetimeDB local data & cache
+.spacetimedb/
+.spacetimedb_data/
+spacetime_data/
+.cargo_cache/
+.cargo_git/
+
+# IDE & OS files
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db

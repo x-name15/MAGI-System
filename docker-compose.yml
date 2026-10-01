@@ -1,0 +1,65 @@
+services:
+  spacetimedb:
+    image: clockworklabs/spacetime:latest
+    container_name: magi-spacetimedb
+    mem_limit: 512m
+    mem_reservation: 128m
+    cpus: 1.0
+    ports:
+      - "3000:3000"
+    command: ["start", "--listen-addr", "0.0.0.0:3000", "--data-dir=/stdb/data"]
+    volumes:
+      - ./.spacetimedb_data:/stdb
+    restart: unless-stopped
+
+  magi:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: magi-client
+    mem_limit: 2g
+    mem_reservation: 512m
+    cpus: 2.0
+    depends_on:
+      - spacetimedb
+    volumes:
+      - .:/workspace
+      - cargo_cache:/usr/local/cargo/registry
+      - cargo_git:/usr/local/cargo/git
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      - SPACETIMEDB_URI=http://spacetimedb:3000
+      - SPACETIMEDB_DATABASE=magi-system
+    entrypoint: ["/bin/bash", "/workspace/scripts/entrypoint.sh"]
+    stdin_open: true
+    tty: true
+
+  magi-dev:
+    profiles: ["dev"]
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: magi-dev
+    mem_limit: 2g
+    mem_reservation: 512m
+    cpus: 2.0
+    depends_on:
+      - spacetimedb
+    volumes:
+      - .:/workspace
+      - cargo_cache:/usr/local/cargo/registry
+      - cargo_git:/usr/local/cargo/git
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      - SPACETIMEDB_URI=http://spacetimedb:3000
+      - SPACETIMEDB_DATABASE=magi-system
+    stdin_open: true
+    tty: true
+
+volumes:
+  cargo_cache:
+  cargo_git:

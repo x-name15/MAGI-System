@@ -1,0 +1,152 @@
+name: MAGI-SYSTEM Release
+
+on:
+  workflow_run:
+    workflows: ["MAGI-SYSTEM CI"]
+    types: [completed]
+    branches: [main]
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  check-tag:
+    name: Check Release Tag
+    if: ${{ github.event_name == 'push' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.VERSION }}
+      tag: ${{ steps.version.outputs.TAG }}
+      should_release: ${{ steps.check.outputs.SHOULD_RELEASE }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Extract version
+        id: version
+        run: |
+          if [[ "${{ github.ref_type }}" == "tag" ]]; then
+            TAG="${{ github.ref_name }}"
+            VERSION="${TAG#v}"
+          else
+            VERSION=$(grep -m1 '## \[' CHANGELOG.md | sed 's/## \[\([^]]*\)\].*/\1/')
+            TAG="v$VERSION"
+          fi
+          echo "VERSION=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "TAG=$TAG" >> "$GITHUB_OUTPUT"
+          echo "Discovered version: $VERSION, tag: $TAG"
+
+      - name: Check if tag exists (for branch push)
+        id: check
+        run: |
+          TAG="${{ steps.version.outputs.TAG }}"
+          if [[ "${{ github.event_name }}" == "push" && "${{ github.ref_type }}" == "tag" ]]; then
+            echo "SHOULD_RELEASE=true" >> "$GITHUB_OUTPUT"
+          elif git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "Tag $TAG already exists, skipping release."
+            echo "SHOULD_RELEASE=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "SHOULD_RELEASE=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  build-binaries:
+    name: Build Binary (${{ matrix.target }})
+    needs: check-tag
+    if: needs.check-tag.outputs.should_release == 'true'
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            artifact_name: magi-linux-amd64.tar.gz
+            bin_name: magi
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            artifact_name: magi-windows-amd64.zip
+            bin_name: magi.exe
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.90.0
+          targets: ${{ matrix.target }}
+
+      - name: Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
+
+      - name: Build client binary
+        run: cargo build --package magi-client --release --target ${{ matrix.target }}
+
+      - name: Package binary (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          cd target/${{ matrix.target }}/release
+          tar -czf ../../../${{ matrix.artifact_name }} ${{ matrix.bin_name }}
+          cd ../../..
+
+      - name: Package binary (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Compress-Archive -Path "target/${{ matrix.target }}/release/${{ matrix.bin_name }}" -DestinationPath "${{ matrix.artifact_name }}"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: ${{ matrix.artifact_name }}
+          retention-days: 1
+
+  publish-release:
+    name: Create GitHub Release
+    needs: [check-tag, build-binaries]
+    if: needs.check-tag.outputs.should_release == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download all binary artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+          merge-multiple: true
+
+      - name: Extract release notes
+        run: |
+          awk '/## \[/{if (count++) exit} count==1{print}' CHANGELOG.md > RELEASE_NOTES.md
+
+      - name: Create Git Tag if needed
+        run: |
+          TAG="${{ needs.check-tag.outputs.tag }}"
+          if ! git rev-parse "$TAG" >/dev/null 2>&1; then
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git tag -a "$TAG" -m "Release $TAG"
+            git push origin "$TAG"
+          fi
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.check-tag.outputs.tag }}
+          name: ${{ needs.check-tag.outputs.tag }}
+          body_path: RELEASE_NOTES.md
+          files: release-assets/*
+          draft: false
+          prerelease: false

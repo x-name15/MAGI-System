@@ -1,0 +1,40 @@
+name: MAGI-SYSTEM CI
+
+on:
+  push:
+    branches: [main, "feature/*"]
+  pull_request:
+    branches: [main]
+
+jobs:
+  check-and-test:
+    name: Lint, Test & Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.90.0
+          targets: wasm32-unknown-unknown
+          components: rustfmt, clippy
+
+      - name: Rust cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Check code formatting
+        run: cargo fmt --all -- --check
+
+      - name: Run clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+      - name: Run unit & integration tests
+        run: cargo test --workspace --verbose
+
+      - name: Build server WASM module
+        run: cargo build --package magi-server --target wasm32-unknown-unknown --release
+
+      - name: Build client binary
+        run: cargo build --package magi-client --release

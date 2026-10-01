@@ -1,0 +1,10 @@
+.git
+.env
+.env.*
+!.env.example
+.spacetimedb_data
+deliberations
+target
+**/target
+Dockerfile.dev
+docker-compose.yml
