@@ -62,10 +62,7 @@ impl NervTheme {
     /// Prints a NERV-style system identification header.
     pub fn print_banner() {
         Self::rule();
-        println!(
-            "{}",
-            "NERV  //  MAGI SYSTEM".truecolor(255, 112, 24).bold()
-        );
+        println!("{}", "NERV  //  MAGI SYSTEM".truecolor(255, 112, 24).bold());
         println!(
             "{}",
             "TACTICAL CODE AUDIT  ·  TRINITY CONSENSUS PROTOCOL"
@@ -74,8 +71,7 @@ impl NervTheme {
         );
         println!(
             "{}",
-            "CENTRAL DOGMA / SECURE COMPUTATION DIVISION"
-                .truecolor(160, 160, 160)
+            "CENTRAL DOGMA / SECURE COMPUTATION DIVISION".truecolor(160, 160, 160)
         );
         println!(
             "{}",
@@ -92,10 +88,20 @@ impl NervTheme {
         println!(
             "{} {}",
             "CASE ID".truecolor(160, 160, 160),
-            format!("MAGI-{deliberation_id:06}").truecolor(255, 210, 120).bold()
+            format!("MAGI-{deliberation_id:06}")
+                .truecolor(255, 210, 120)
+                .bold()
         );
-        println!("{} {}", "TARGET".truecolor(160, 160, 160), title.white().bold());
-        println!("{} {}", "OPERATOR".truecolor(160, 160, 160), author.truecolor(190, 190, 190));
+        println!(
+            "{} {}",
+            "TARGET".truecolor(160, 160, 160),
+            title.white().bold()
+        );
+        println!(
+            "{} {}",
+            "OPERATOR".truecolor(160, 160, 160),
+            author.truecolor(190, 190, 190)
+        );
         println!(
             "{}",
             "──────────────────────────────────────────────────────────────────────────────"
@@ -169,7 +175,7 @@ impl NervTheme {
         let line_top = if eval.node_id == "Balthasar-2" {
             format!("┌{}┐", border_h).truecolor(r, g, b).to_string()
         } else {
-            format!("┌───────────┴───────────┐").truecolor(r, g, b).to_string()
+            "┌───────────┴───────────┐".truecolor(r, g, b).to_string()
         };
 
         let line_mid = match eval.node_id.as_str() {
@@ -179,7 +185,7 @@ impl NervTheme {
         };
 
         let line_bot = if eval.node_id == "Balthasar-2" {
-            format!("└───────────┬───────────┘").truecolor(r, g, b).to_string()
+            "└───────────┬───────────┘".truecolor(r, g, b).to_string()
         } else {
             format!("└{}┘", border_h).truecolor(r, g, b).to_string()
         };
@@ -217,29 +223,64 @@ impl NervTheme {
         // Row 4: Telemetry (exact 23 chars)
         let conf_pct = (eval.confidence * 100.0).round() as u32;
         let round_tag = if is_r1 { "R1" } else { "R2" };
-        let tele_raw = format!("{}: {:>3}%  LAT:{:>5}ms", round_tag, conf_pct, eval.execution_time_ms.min(99999));
-        let tele_str = format!("{:^23}", tele_raw).truecolor(150, 150, 150).to_string();
+        let tele_raw = format!(
+            "{}: {:>3}%  LAT:{:>5}ms",
+            round_tag,
+            conf_pct,
+            eval.execution_time_ms.min(99999)
+        );
+        let tele_str = format!("{:^23}", tele_raw)
+            .truecolor(150, 150, 150)
+            .to_string();
         let row4 = format!("{}{}{}", l_border, tele_str, r_border);
 
         // Row 5 & 6: Vote Badge & Subtitle (exact 23 chars)
         let (vote_badge, subtitle) = if node_veto {
             (
-                "  ██ SECURITY VETO ██  ".truecolor(255, if bloom { 90 } else { 30 }, if bloom { 90 } else { 30 }).bold().to_string(),
+                "  ██ SECURITY VETO ██  "
+                    .truecolor(
+                        255,
+                        if bloom { 90 } else { 30 },
+                        if bloom { 90 } else { 30 },
+                    )
+                    .bold()
+                    .to_string(),
                 "    [ SECURITY VETO ]  ".truecolor(255, 60, 60).to_string(),
             )
         } else {
             match active_vote {
                 "APPROVE" => (
-                    "    ██ AGREEMENT ██    ".truecolor(if bloom { 180 } else { 80 }, 255, if bloom { 180 } else { 80 }).bold().to_string(),
-                    "     [  AGREEMENT  ]   ".truecolor(100, 220, 100).to_string(),
+                    "    ██ AGREEMENT ██    "
+                        .truecolor(
+                            if bloom { 180 } else { 80 },
+                            255,
+                            if bloom { 180 } else { 80 },
+                        )
+                        .bold()
+                        .to_string(),
+                    "     [  AGREEMENT  ]   "
+                        .truecolor(100, 220, 100)
+                        .to_string(),
                 ),
                 "REJECT" => (
-                    "     ██ DENIAL ██      ".truecolor(255, if bloom { 110 } else { 60 }, if bloom { 110 } else { 60 }).bold().to_string(),
+                    "     ██ DENIAL ██      "
+                        .truecolor(
+                            255,
+                            if bloom { 110 } else { 60 },
+                            if bloom { 110 } else { 60 },
+                        )
+                        .bold()
+                        .to_string(),
                     "     [    DENIAL   ]   ".truecolor(220, 80, 80).to_string(),
                 ),
                 _ => (
-                    "    ◇◇  NEUTRAL  ◇◇    ".truecolor(255, 200, 60).bold().to_string(),
-                    "     [   RESERVED  ]   ".truecolor(200, 180, 80).to_string(),
+                    "    ◇◇  NEUTRAL  ◇◇    "
+                        .truecolor(255, 200, 60)
+                        .bold()
+                        .to_string(),
+                    "     [   RESERVED  ]   "
+                        .truecolor(200, 180, 80)
+                        .to_string(),
                 ),
             }
         };
@@ -247,15 +288,7 @@ impl NervTheme {
         let row6 = format!("{}{}{}", l_border, subtitle, r_border);
 
         vec![
-            line_top,
-            row1,
-            row2,
-            row3,
-            row4,
-            line_mid,
-            row5,
-            row6,
-            line_bot,
+            line_top, row1, row2, row3, row4, line_mid, row5, row6, line_bot,
         ]
     }
 
@@ -271,43 +304,64 @@ impl NervTheme {
         let (dim_r, dim_g, dim_b) = (50, 42, 30);
         let border_h = "─".repeat(23);
         let line_top = if eval.node_id == "Balthasar-2" {
-            format!("┌{}┐", border_h).truecolor(dim_r, dim_g, dim_b).to_string()
+            format!("┌{}┐", border_h)
+                .truecolor(dim_r, dim_g, dim_b)
+                .to_string()
         } else {
-            format!("┌───────────┴───────────┐").truecolor(dim_r, dim_g, dim_b).to_string()
+            "┌───────────┴───────────┐"
+                .truecolor(dim_r, dim_g, dim_b)
+                .to_string()
         };
 
         let line_mid = match eval.node_id.as_str() {
-            "Casper-3" => format!("├{}┼", border_h).truecolor(dim_r, dim_g, dim_b).to_string(),
-            "Melchior-1" => format!("┼{}┤", border_h).truecolor(dim_r, dim_g, dim_b).to_string(),
-            _ => format!("├{}┤", border_h).truecolor(dim_r, dim_g, dim_b).to_string(),
+            "Casper-3" => format!("├{}┼", border_h)
+                .truecolor(dim_r, dim_g, dim_b)
+                .to_string(),
+            "Melchior-1" => format!("┼{}┤", border_h)
+                .truecolor(dim_r, dim_g, dim_b)
+                .to_string(),
+            _ => format!("├{}┤", border_h)
+                .truecolor(dim_r, dim_g, dim_b)
+                .to_string(),
         };
 
         let line_bot = if eval.node_id == "Balthasar-2" {
-            format!("└───────────┬───────────┘").truecolor(dim_r, dim_g, dim_b).to_string()
+            "└───────────┬───────────┘"
+                .truecolor(dim_r, dim_g, dim_b)
+                .to_string()
         } else {
-            format!("└{}┘", border_h).truecolor(dim_r, dim_g, dim_b).to_string()
+            format!("└{}┘", border_h)
+                .truecolor(dim_r, dim_g, dim_b)
+                .to_string()
         };
 
         let l_border = "│".truecolor(dim_r, dim_g, dim_b).to_string();
         let r_border = "│".truecolor(dim_r, dim_g, dim_b).to_string();
 
         let row1 = format!("{}{:^23}{}", l_border, name.truecolor(75, 60, 42), r_border);
-        let row2 = format!("{}{:^23}{}", l_border, "· · · · · · ·".truecolor(40, 35, 28), r_border);
+        let row2 = format!(
+            "{}{:^23}{}",
+            l_border,
+            "· · · · · · ·".truecolor(40, 35, 28),
+            r_border
+        );
         let row3 = format!("{}{:^23}{}", l_border, "                     ", r_border);
-        let row4 = format!("{}{:^23}{}", l_border, " · CATHODE STROBE ·  ".truecolor(65, 55, 40), r_border);
+        let row4 = format!(
+            "{}{:^23}{}",
+            l_border,
+            " · CATHODE STROBE ·  ".truecolor(65, 55, 40),
+            r_border
+        );
         let row5 = format!("{}{:^23}{}", l_border, "                     ", r_border);
-        let row6 = format!("{}{:^23}{}", l_border, "· · · · · · ·".truecolor(40, 35, 28), r_border);
+        let row6 = format!(
+            "{}{:^23}{}",
+            l_border,
+            "· · · · · · ·".truecolor(40, 35, 28),
+            r_border
+        );
 
         vec![
-            line_top,
-            row1,
-            row2,
-            row3,
-            row4,
-            line_mid,
-            row5,
-            row6,
-            line_bot,
+            line_top, row1, row2, row3, row4, line_mid, row5, row6, line_bot,
         ]
     }
 
@@ -331,7 +385,7 @@ impl NervTheme {
         let line_top = if eval.node_id == "Balthasar-2" {
             format!("┌{}┐", border_h).truecolor(r, g, b).to_string()
         } else {
-            format!("┌───────────┴───────────┐").truecolor(r, g, b).to_string()
+            "┌───────────┴───────────┐".truecolor(r, g, b).to_string()
         };
 
         let line_mid = match eval.node_id.as_str() {
@@ -341,7 +395,7 @@ impl NervTheme {
         };
 
         let line_bot = if eval.node_id == "Balthasar-2" {
-            format!("└───────────┬───────────┘").truecolor(r, g, b).to_string()
+            "└───────────┬───────────┘".truecolor(r, g, b).to_string()
         } else {
             format!("└{}┘", border_h).truecolor(r, g, b).to_string()
         };
@@ -349,13 +403,25 @@ impl NervTheme {
         let l_border = "│".truecolor(r, g, b).to_string();
         let r_border = "│".truecolor(r, g, b).to_string();
 
-        let row1 = format!("{}{:^23}{}", l_border, name.truecolor(r, g, b).bold(), r_border);
-        let row2 = format!("{}{:^23}{}", l_border, role.truecolor(0, 170, 210), r_border);
+        let row1 = format!(
+            "{}{:^23}{}",
+            l_border,
+            name.truecolor(r, g, b).bold(),
+            r_border
+        );
+        let row2 = format!(
+            "{}{:^23}{}",
+            l_border,
+            role.truecolor(0, 170, 210),
+            r_border
+        );
 
         // Fluctuating risk gauge (exact 23 chars)
         let filled = "█".repeat(sim_risk.min(10));
         let empty = "░".repeat(10 - sim_risk.min(10));
-        let gauge = format!("{}{}", filled, empty).truecolor(r, g, b).to_string();
+        let gauge = format!("{}{}", filled, empty)
+            .truecolor(r, g, b)
+            .to_string();
         let risk_label = format!("RISK [{}]  --/10", gauge);
         let row3 = format!("{}{}{}", l_border, risk_label, r_border);
 
@@ -368,24 +434,21 @@ impl NervTheme {
 
         // Deliberation blinking badge (exact 23 chars)
         let badge_text = if blink {
-            "  ██ DELIBERATING ██   ".truecolor(0, 240, 255).bold().to_string()
+            "  ██ DELIBERATING ██   "
+                .truecolor(0, 240, 255)
+                .bold()
+                .to_string()
         } else {
             "  ▒▒ DELIBERATING ▒▒   ".truecolor(0, 160, 200).to_string()
         };
-        let sub_text = "   [ SYNCHRONIZING ]   ".truecolor(100, 200, 230).to_string();
+        let sub_text = "   [ SYNCHRONIZING ]   "
+            .truecolor(100, 200, 230)
+            .to_string();
         let row5 = format!("{}{}{}", l_border, badge_text, r_border);
         let row6 = format!("{}{}{}", l_border, sub_text, r_border);
 
         vec![
-            line_top,
-            row1,
-            row2,
-            row3,
-            row4,
-            line_mid,
-            row5,
-            row6,
-            line_bot,
+            line_top, row1, row2, row3, row4, line_mid, row5, row6, line_bot,
         ]
     }
 
@@ -427,16 +490,9 @@ impl NervTheme {
 
         for i in 0..lines_c.len() {
             // Line mid (index 5) connects Casper and Melchior directly with a horizontal line
-            let gap_str = if i == 5 {
-                &bridge_wire
-            } else {
-                &pad_gap
-            };
+            let gap_str = if i == 5 { &bridge_wire } else { &pad_gap };
 
-            println!(
-                "\x1b[2K{}{}{}{}",
-                pad_left, lines_c[i], gap_str, lines_m[i]
-            );
+            println!("\x1b[2K{}{}{}{}", pad_left, lines_c[i], gap_str, lines_m[i]);
         }
     }
 
@@ -467,17 +523,25 @@ impl NervTheme {
             }
 
             let is_veto_m = false;
-            let is_veto_b = ev_b.vote == "REJECT" && (ev_b.risk_score >= 8 || !ev_b.cwe_flags.is_empty());
+            let is_veto_b =
+                ev_b.vote == "REJECT" && (ev_b.risk_score >= 8 || !ev_b.cwe_flags.is_empty());
             let is_veto_c = false;
 
-            let render_node = |state: AnimState, eval: &NodeEvaluation, is_veto: bool| -> Vec<String> {
-                match state {
-                    AnimState::Scan(sim_risk, blink) => Self::format_deliberating_monitor(eval, sim_risk, blink),
-                    AnimState::Strobe => Self::format_blackout_monitor(eval),
-                    AnimState::LockR1(bloom) => Self::format_node_monitor(eval, is_veto, bloom, true),
-                    AnimState::LockR2(bloom) => Self::format_node_monitor(eval, is_veto, bloom, false),
-                }
-            };
+            let render_node =
+                |state: AnimState, eval: &NodeEvaluation, is_veto: bool| -> Vec<String> {
+                    match state {
+                        AnimState::Scan(sim_risk, blink) => {
+                            Self::format_deliberating_monitor(eval, sim_risk, blink)
+                        }
+                        AnimState::Strobe => Self::format_blackout_monitor(eval),
+                        AnimState::LockR1(bloom) => {
+                            Self::format_node_monitor(eval, is_veto, bloom, true)
+                        }
+                        AnimState::LockR2(bloom) => {
+                            Self::format_node_monitor(eval, is_veto, bloom, false)
+                        }
+                    }
+                };
 
             let cyan_bus = (0, 200, 240);
             let amber_bus = (255, 174, 66);
@@ -491,47 +555,156 @@ impl NervTheme {
 
             // 16-frame sequence capturing the exact triangular Evangelion deliberation lifecycle:
             // (State Balthasar, State Casper, State Melchior, Phase, BusColor, Delay ms)
-            let frames: [(AnimState, AnimState, AnimState, usize, (u8, u8, u8), u64); 16] = [
+            type DeliberationFrame = (AnimState, AnimState, AnimState, usize, (u8, u8, u8), u64);
+            let frames: [DeliberationFrame; 16] = [
                 // 0. Initial cyan scan
-                (AnimState::Scan(4, true),  AnimState::Scan(7, true),  AnimState::Scan(3, true),  0, cyan_bus, 160),
+                (
+                    AnimState::Scan(4, true),
+                    AnimState::Scan(7, true),
+                    AnimState::Scan(3, true),
+                    0,
+                    cyan_bus,
+                    160,
+                ),
                 // 1. CRT flicker across bus
-                (AnimState::Scan(6, false), AnimState::Strobe,         AnimState::Scan(5, false), 0, cyan_bus, 80),
+                (
+                    AnimState::Scan(6, false),
+                    AnimState::Strobe,
+                    AnimState::Scan(5, false),
+                    0,
+                    cyan_bus,
+                    80,
+                ),
                 // 2. Cyan scan resumes
-                (AnimState::Scan(3, true),  AnimState::Scan(8, true),  AnimState::Strobe,         0, cyan_bus, 90),
+                (
+                    AnimState::Scan(3, true),
+                    AnimState::Scan(8, true),
+                    AnimState::Strobe,
+                    0,
+                    cyan_bus,
+                    90,
+                ),
                 // 3. Fluctuating risk across nodes
-                (AnimState::Scan(8, false), AnimState::Scan(5, false), AnimState::Scan(9, false), 0, cyan_bus, 140),
-
+                (
+                    AnimState::Scan(8, false),
+                    AnimState::Scan(5, false),
+                    AnimState::Scan(9, false),
+                    0,
+                    cyan_bus,
+                    140,
+                ),
                 // --- ROUND 1: INDEPENDENT EVALUATIONS LOCK ---
                 // 4. Melchior locks R1
-                (AnimState::Scan(5, true),  AnimState::Scan(7, true),  AnimState::LockR1(true),   1, amber_bus, 320),
+                (
+                    AnimState::Scan(5, true),
+                    AnimState::Scan(7, true),
+                    AnimState::LockR1(true),
+                    1,
+                    amber_bus,
+                    320,
+                ),
                 // 5. Balthasar locks R1
-                (AnimState::LockR1(true),   AnimState::Scan(8, false), AnimState::LockR1(false),  1, amber_bus, 320),
+                (
+                    AnimState::LockR1(true),
+                    AnimState::Scan(8, false),
+                    AnimState::LockR1(false),
+                    1,
+                    amber_bus,
+                    320,
+                ),
                 // 6. Casper locks R1
-                (AnimState::LockR1(false),  AnimState::LockR1(true),   AnimState::LockR1(false),  1, amber_bus, 380),
+                (
+                    AnimState::LockR1(false),
+                    AnimState::LockR1(true),
+                    AnimState::LockR1(false),
+                    1,
+                    amber_bus,
+                    380,
+                ),
                 // 7. Stabilized R1 display
-                (AnimState::LockR1(false),  AnimState::LockR1(false),  AnimState::LockR1(false),  1, amber_bus, 700),
-
+                (
+                    AnimState::LockR1(false),
+                    AnimState::LockR1(false),
+                    AnimState::LockR1(false),
+                    1,
+                    amber_bus,
+                    700,
+                ),
                 // --- ROUND 2: PEER CROSS-DEBATE ACROSS MAGI BUS ---
                 // 8. Inter-node debate initiates: bus strobe
-                (AnimState::Strobe,         AnimState::LockR1(false),  AnimState::Strobe,         2, strobe_bus, 200),
+                (
+                    AnimState::Strobe,
+                    AnimState::LockR1(false),
+                    AnimState::Strobe,
+                    2,
+                    strobe_bus,
+                    200,
+                ),
                 // 9. Arguments exchanged: Casper strobes, bus pulses
-                (AnimState::LockR1(false),  AnimState::Strobe,         AnimState::LockR1(false),  2, strobe_bus, 200),
-
+                (
+                    AnimState::LockR1(false),
+                    AnimState::Strobe,
+                    AnimState::LockR1(false),
+                    2,
+                    strobe_bus,
+                    200,
+                ),
                 // --- ROUND 2: FINAL POSITIONS LOCK ---
                 // 10. Melchior locks final R2 stance
-                (AnimState::LockR1(false),  AnimState::LockR1(false),  AnimState::LockR2(true),   3, amber_bus, 320),
+                (
+                    AnimState::LockR1(false),
+                    AnimState::LockR1(false),
+                    AnimState::LockR2(true),
+                    3,
+                    amber_bus,
+                    320,
+                ),
                 // 11. Balthasar locks final R2 stance
-                (AnimState::LockR2(true),   AnimState::LockR1(false),  AnimState::LockR2(false),  3, amber_bus, 320),
+                (
+                    AnimState::LockR2(true),
+                    AnimState::LockR1(false),
+                    AnimState::LockR2(false),
+                    3,
+                    amber_bus,
+                    320,
+                ),
                 // 12. Casper locks final R2 stance
-                (AnimState::LockR2(false),  AnimState::LockR2(true),   AnimState::LockR2(false),  3, amber_bus, 380),
+                (
+                    AnimState::LockR2(false),
+                    AnimState::LockR2(true),
+                    AnimState::LockR2(false),
+                    3,
+                    amber_bus,
+                    380,
+                ),
                 // 13. All 3 locked in R2
-                (AnimState::LockR2(false),  AnimState::LockR2(false),  AnimState::LockR2(false),  3, amber_bus, 500),
-
+                (
+                    AnimState::LockR2(false),
+                    AnimState::LockR2(false),
+                    AnimState::LockR2(false),
+                    3,
+                    amber_bus,
+                    500,
+                ),
                 // --- TRINITY CONSENSUS RESOLUTION PULSE ---
                 // 14. Synchronized bloom pulse across all 3 monitors & bus!
-                (AnimState::LockR2(true),   AnimState::LockR2(true),   AnimState::LockR2(true),   4, consensus_bus, 350),
+                (
+                    AnimState::LockR2(true),
+                    AnimState::LockR2(true),
+                    AnimState::LockR2(true),
+                    4,
+                    consensus_bus,
+                    350,
+                ),
                 // 15. Final stabilized consensus state
-                (AnimState::LockR2(false),  AnimState::LockR2(false),  AnimState::LockR2(false),  4, consensus_bus, 0),
+                (
+                    AnimState::LockR2(false),
+                    AnimState::LockR2(false),
+                    AnimState::LockR2(false),
+                    4,
+                    consensus_bus,
+                    0,
+                ),
             ];
 
             for (idx, (st_b, st_c, st_m, phase, bus_col, delay)) in frames.iter().enumerate() {
@@ -542,58 +715,82 @@ impl NervTheme {
                 let header_line = match (*phase, is_es) {
                     (0, true) => format!(
                         "  {}  {}",
-                        "⟳ 質問 · CONSULTA: SINCRONIZANDO NODOS".truecolor(255, 174, 66).bold(),
+                        "⟳ 質問 · CONSULTA: SINCRONIZANDO NODOS"
+                            .truecolor(255, 174, 66)
+                            .bold(),
                         "解決 · RESOLUCIÓN: INICIANDO EVALUACIÓN...".truecolor(160, 130, 80)
                     ),
                     (0, false) => format!(
                         "  {}  {}",
-                        "⟳ 質問 · INQUIRY: SYNCHRONIZING NODES".truecolor(255, 174, 66).bold(),
+                        "⟳ 質問 · INQUIRY: SYNCHRONIZING NODES"
+                            .truecolor(255, 174, 66)
+                            .bold(),
                         "解決 · RESOLUTION: INITIALIZING EVALUATION...".truecolor(160, 130, 80)
                     ),
                     (1, true) => format!(
                         "  {}  {}",
-                        "↳ 質問 · RONDA 1: EVALUACIÓN INDEPENDIENTE".truecolor(255, 195, 45).bold(),
+                        "↳ 質問 · RONDA 1: EVALUACIÓN INDEPENDIENTE"
+                            .truecolor(255, 195, 45)
+                            .bold(),
                         "解決 · RESOLUCIÓN: PENDIENTE DE DEBATE...".truecolor(180, 150, 90)
                     ),
                     (1, false) => format!(
                         "  {}  {}",
-                        "↳ 質問 · ROUND 1: INDEPENDENT VOTES LOCKED".truecolor(255, 195, 45).bold(),
+                        "↳ 質問 · ROUND 1: INDEPENDENT VOTES LOCKED"
+                            .truecolor(255, 195, 45)
+                            .bold(),
                         "解決 · RESOLUTION: CROSS-DEBATE PENDING...".truecolor(180, 150, 90)
                     ),
                     (2, true) => format!(
                         "  {}  {}",
-                        "↳ 質問 · RONDA 2: DEBATE CRUZADO INTER-NODOS".truecolor(255, 230, 80).bold(),
+                        "↳ 質問 · RONDA 2: DEBATE CRUZADO INTER-NODOS"
+                            .truecolor(255, 230, 80)
+                            .bold(),
                         "解決 · RESOLUCIÓN: EVALUANDO CONTRAPOSICIONES...".truecolor(220, 180, 90)
                     ),
                     (2, false) => format!(
                         "  {}  {}",
-                        "↳ 質問 · ROUND 2: PEER CROSS-DEBATE ACTIVE".truecolor(255, 230, 80).bold(),
+                        "↳ 質問 · ROUND 2: PEER CROSS-DEBATE ACTIVE"
+                            .truecolor(255, 230, 80)
+                            .bold(),
                         "解決 · RESOLUTION: EVALUATING COUNTERARGUMENTS...".truecolor(220, 180, 90)
                     ),
                     (3, true) => format!(
                         "  {}  {}",
-                        "↳ 質問 · RONDA 2: POSICIONES FINALES SELLADAS".truecolor(255, 195, 45).bold(),
+                        "↳ 質問 · RONDA 2: POSICIONES FINALES SELLADAS"
+                            .truecolor(255, 195, 45)
+                            .bold(),
                         "解決 · RESOLUCIÓN: FORMALIZANDO CONSENSO...".truecolor(220, 190, 100)
                     ),
                     (3, false) => format!(
                         "  {}  {}",
-                        "↳ 質問 · ROUND 2: FINAL POSITIONS SEALED".truecolor(255, 195, 45).bold(),
+                        "↳ 質問 · ROUND 2: FINAL POSITIONS SEALED"
+                            .truecolor(255, 195, 45)
+                            .bold(),
                         "解決 · RESOLUTION: FORMALIZING CONSENSUS...".truecolor(220, 190, 100)
                     ),
                     (_, true) => {
                         let (res_r, res_g, res_b) = consensus_bus;
                         format!(
                             "  {}  {}",
-                            "✓ 質問 · TRINIDAD: EVALUACIÓN COMPLETA".truecolor(255, 174, 66).bold(),
-                            "解決 · RESOLUCIÓN: CONSENSO ALCANZADO".truecolor(res_r, res_g, res_b).bold()
+                            "✓ 質問 · TRINIDAD: EVALUACIÓN COMPLETA"
+                                .truecolor(255, 174, 66)
+                                .bold(),
+                            "解決 · RESOLUCIÓN: CONSENSO ALCANZADO"
+                                .truecolor(res_r, res_g, res_b)
+                                .bold()
                         )
                     }
                     (_, false) => {
                         let (res_r, res_g, res_b) = consensus_bus;
                         format!(
                             "  {}  {}",
-                            "✓ 質問 · TRINITY: EVALUATION COMPLETE".truecolor(255, 174, 66).bold(),
-                            "解決 · RESOLUTION: CONSENSUS ACHIEVED".truecolor(res_r, res_g, res_b).bold()
+                            "✓ 質問 · TRINITY: EVALUATION COMPLETE"
+                                .truecolor(255, 174, 66)
+                                .bold(),
+                            "解決 · RESOLUTION: CONSENSUS ACHIEVED"
+                                .truecolor(res_r, res_g, res_b)
+                                .bold()
                         )
                     }
                 };
@@ -641,15 +838,27 @@ impl NervTheme {
         for eval in evaluations {
             let (role_title, role_color) = Self::node_role(&eval.node_id);
             let c = Self::to_colored(role_color);
-            println!("▶ {} ({})", role_title.color(c).bold(), eval.node_id.white());
+            println!(
+                "▶ {} ({})",
+                role_title.color(c).bold(),
+                eval.node_id.white()
+            );
             let _ = std::io::stdout().flush();
             std::thread::sleep(std::time::Duration::from_millis(100));
 
-            if let (Some(ref init_vote), Some(init_risk)) = (&eval.initial_vote, eval.initial_risk_score) {
+            if let (Some(ref init_vote), Some(init_risk)) =
+                (&eval.initial_vote, eval.initial_risk_score)
+            {
                 let traj_label = if is_es {
                     format!("• TRAYECTORIA DE VOTO: R1: {} (Riesgo: {}/10)  ➔  R2 Final: {} (Riesgo: {}/10)", init_vote.bold(), init_risk, eval.vote.bold(), eval.risk_score)
                 } else {
-                    format!("• VOTING TRAJECTORY: R1: {} (Risk: {}/10)  ➔  R2 Final: {} (Risk: {}/10)", init_vote.bold(), init_risk, eval.vote.bold(), eval.risk_score)
+                    format!(
+                        "• VOTING TRAJECTORY: R1: {} (Risk: {}/10)  ➔  R2 Final: {} (Risk: {}/10)",
+                        init_vote.bold(),
+                        init_risk,
+                        eval.vote.bold(),
+                        eval.risk_score
+                    )
                 };
                 println!("  {}", traj_label.truecolor(255, 174, 66));
                 let _ = std::io::stdout().flush();
@@ -657,7 +866,11 @@ impl NervTheme {
             }
 
             if !eval.cwe_flags.is_empty() {
-                let cwe_label = if is_es { "CWE DETECTADOS:" } else { "CWE DETECTED:" };
+                let cwe_label = if is_es {
+                    "CWE DETECTADOS:"
+                } else {
+                    "CWE DETECTED:"
+                };
                 println!(
                     "  {} {}",
                     cwe_label.truecolor(255, 174, 66).bold(),
@@ -687,7 +900,11 @@ impl NervTheme {
             }
 
             if let Some(ref init_arg) = eval.initial_argument {
-                let r1_label = if is_es { "• [RONDA 1: EVALUACIÓN INICIAL]:" } else { "• [ROUND 1: INITIAL POSITION]:" };
+                let r1_label = if is_es {
+                    "• [RONDA 1: EVALUACIÓN INICIAL]:"
+                } else {
+                    "• [ROUND 1: INITIAL POSITION]:"
+                };
                 println!("  {}", r1_label.truecolor(240, 200, 80).bold());
                 println!("    {}", init_arg.white());
                 let _ = std::io::stdout().flush();
@@ -698,7 +915,11 @@ impl NervTheme {
                 } else {
                     &eval.argument
                 };
-                let r2_label = if is_es { "• [RONDA 2: CONCLUSIÓN TRAS DEBATE]:" } else { "• [ROUND 2: POST-DEBATE RESOLUTION]:" };
+                let r2_label = if is_es {
+                    "• [RONDA 2: CONCLUSIÓN TRAS DEBATE]:"
+                } else {
+                    "• [ROUND 2: POST-DEBATE RESOLUTION]:"
+                };
                 println!("  {}", r2_label.truecolor(80, 230, 240).bold());
                 println!("    {}", final_stance.white());
                 let _ = std::io::stdout().flush();
@@ -730,9 +951,21 @@ impl NervTheme {
         let (banner_title, detail, r, g, b) = match verdict {
             "CONSENSUS_UNAVAILABLE" => {
                 if is_es {
-                    ("CONSENSUS UNAVAILABLE // 通信途絶", "Sin veredicto persistido en SpacetimeDB. No se usó fallback local.", 255, 60, 60)
+                    (
+                        "CONSENSUS UNAVAILABLE // 通信途絶",
+                        "Sin veredicto persistido en SpacetimeDB. No se usó fallback local.",
+                        255,
+                        60,
+                        60,
+                    )
                 } else {
-                    ("CONSENSUS UNAVAILABLE // 通信途絶", "No persisted verdict returned by SpacetimeDB. No local fallback was used.", 255, 60, 60)
+                    (
+                        "CONSENSUS UNAVAILABLE // 通信途絶",
+                        "No persisted verdict returned by SpacetimeDB. No local fallback was used.",
+                        255,
+                        60,
+                        60,
+                    )
                 }
             }
             "VETO_BALTHASAR_SECURITY" => {
@@ -744,30 +977,78 @@ impl NervTheme {
             }
             "APPROVED_UNANIMOUS" => {
                 if is_es {
-                    ("UNANIMOUS AGREEMENT // 全会一致合意 (3–0)", "Los tres nodos de MAGI aprobaron la propuesta sin objeciones.", 80, 255, 80)
+                    (
+                        "UNANIMOUS AGREEMENT // 全会一致合意 (3–0)",
+                        "Los tres nodos de MAGI aprobaron la propuesta sin objeciones.",
+                        80,
+                        255,
+                        80,
+                    )
                 } else {
-                    ("UNANIMOUS AGREEMENT // 全会一致合意 (3–0)", "All three MAGI nodes approved the proposal unconditionally.", 80, 255, 80)
+                    (
+                        "UNANIMOUS AGREEMENT // 全会一致合意 (3–0)",
+                        "All three MAGI nodes approved the proposal unconditionally.",
+                        80,
+                        255,
+                        80,
+                    )
                 }
             }
             "APPROVED_MAJORITY" => {
                 if is_es {
-                    ("MAJORITY AGREEMENT // 多数決合意 (2–1)", "La propuesta fue aprobada por consenso mayoritario de la Trinidad.", 255, 174, 66)
+                    (
+                        "MAJORITY AGREEMENT // 多数決合意 (2–1)",
+                        "La propuesta fue aprobada por consenso mayoritario de la Trinidad.",
+                        255,
+                        174,
+                        66,
+                    )
                 } else {
-                    ("MAJORITY AGREEMENT // 多数決合意 (2–1)", "The proposal was approved by majority Trinity consensus.", 255, 174, 66)
+                    (
+                        "MAJORITY AGREEMENT // 多数決合意 (2–1)",
+                        "The proposal was approved by majority Trinity consensus.",
+                        255,
+                        174,
+                        66,
+                    )
                 }
             }
             "REJECTED_MAJORITY" => {
                 if is_es {
-                    ("MAJORITY DENIAL // 多数決拒絶 (1–2)", "La propuesta fue rechazada por mayoría de votos en la Trinidad.", 255, 80, 80)
+                    (
+                        "MAJORITY DENIAL // 多数決拒絶 (1–2)",
+                        "La propuesta fue rechazada por mayoría de votos en la Trinidad.",
+                        255,
+                        80,
+                        80,
+                    )
                 } else {
-                    ("MAJORITY DENIAL // 多数決拒絶 (1–2)", "The proposal was rejected by majority vote across the Trinity.", 255, 80, 80)
+                    (
+                        "MAJORITY DENIAL // 多数決拒絶 (1–2)",
+                        "The proposal was rejected by majority vote across the Trinity.",
+                        255,
+                        80,
+                        80,
+                    )
                 }
             }
             "REJECTED_UNANIMOUS" => {
                 if is_es {
-                    ("UNANIMOUS DENIAL // 全会一致拒絶 (0–3)", "Los tres nodos de MAGI rechazaron la propuesta categóricamente.", 255, 40, 40)
+                    (
+                        "UNANIMOUS DENIAL // 全会一致拒絶 (0–3)",
+                        "Los tres nodos de MAGI rechazaron la propuesta categóricamente.",
+                        255,
+                        40,
+                        40,
+                    )
                 } else {
-                    ("UNANIMOUS DENIAL // 全会一致拒絶 (0–3)", "All three MAGI nodes rejected the proposal outright.", 255, 40, 40)
+                    (
+                        "UNANIMOUS DENIAL // 全会一致拒絶 (0–3)",
+                        "All three MAGI nodes rejected the proposal outright.",
+                        255,
+                        40,
+                        40,
+                    )
                 }
             }
             "SPLIT_DECISION_REQUIRES_REVIEW" => {
@@ -787,7 +1068,7 @@ impl NervTheme {
         let bot_box = format!("╚{}╝", border_line).truecolor(r, g, b).bold();
 
         let text_width = Self::str_display_width(banner_title);
-        let total_pad = if inner_width > text_width { inner_width - text_width } else { 0 };
+        let total_pad = inner_width.saturating_sub(text_width);
         let left_pad = total_pad / 2;
         let right_pad = total_pad - left_pad;
         let mid_box = format!(
@@ -814,7 +1095,11 @@ impl NervTheme {
         };
 
         let status_label = if is_es { "▶ ESTADO:" } else { "▶ STATUS:" };
-        let synth_label = if is_es { "▶ SÍNTESIS:" } else { "▶ SYNTHESIS:" };
+        let synth_label = if is_es {
+            "▶ SÍNTESIS:"
+        } else {
+            "▶ SYNTHESIS:"
+        };
 
         println!(
             "  {} {}",
@@ -842,7 +1127,11 @@ impl NervTheme {
         Self::rule();
         Self::section("TARGETED TRIAGE / SPECIALIST OPENING");
         let (role, role_color) = Self::node_role(lead_node);
-        println!("{} {}", "LEAD NODE".truecolor(160, 160, 160), role.color(Self::to_colored(role_color)).bold());
+        println!(
+            "{} {}",
+            "LEAD NODE".truecolor(160, 160, 160),
+            role.color(Self::to_colored(role_color)).bold()
+        );
         println!(
             "{} {}",
             "VOTE / RISK".truecolor(160, 160, 160),
@@ -884,11 +1173,21 @@ impl NervTheme {
             .load_preset(UTF8_FULL)
             .set_content_arrangement(ContentArrangement::Dynamic)
             .set_header(vec![
-                Cell::new("CASE").fg(Color::Yellow).add_attribute(Attribute::Bold),
-                Cell::new("OPERATOR").fg(Color::Yellow).add_attribute(Attribute::Bold),
-                Cell::new("TARGET").fg(Color::Yellow).add_attribute(Attribute::Bold),
-                Cell::new("TYPE").fg(Color::Yellow).add_attribute(Attribute::Bold),
-                Cell::new("STATE").fg(Color::Yellow).add_attribute(Attribute::Bold),
+                Cell::new("CASE")
+                    .fg(Color::Yellow)
+                    .add_attribute(Attribute::Bold),
+                Cell::new("OPERATOR")
+                    .fg(Color::Yellow)
+                    .add_attribute(Attribute::Bold),
+                Cell::new("TARGET")
+                    .fg(Color::Yellow)
+                    .add_attribute(Attribute::Bold),
+                Cell::new("TYPE")
+                    .fg(Color::Yellow)
+                    .add_attribute(Attribute::Bold),
+                Cell::new("STATE")
+                    .fg(Color::Yellow)
+                    .add_attribute(Attribute::Bold),
             ]);
 
         for d in deliberations {

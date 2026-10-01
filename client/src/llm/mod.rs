@@ -72,10 +72,31 @@ fn default_confidence() -> f32 {
 pub fn is_spanish_text(text: &str) -> bool {
     let lower = text.to_lowercase();
     let spanish_tokens = [
-        " de ", " la ", " el ", " en ", " que ", " los ", " las ", " por ",
-        " un ", " una ", " con ", " para ", " este ", " esta ", " como ",
-        " evalua ", " audita ", " seguridad ", " propuesta ", " viabilidad ",
-        " riesgo ", " concurrencia ", " arquitectura ", " solución ", " función "
+        " de ",
+        " la ",
+        " el ",
+        " en ",
+        " que ",
+        " los ",
+        " las ",
+        " por ",
+        " un ",
+        " una ",
+        " con ",
+        " para ",
+        " este ",
+        " esta ",
+        " como ",
+        " evalua ",
+        " audita ",
+        " seguridad ",
+        " propuesta ",
+        " viabilidad ",
+        " riesgo ",
+        " concurrencia ",
+        " arquitectura ",
+        " solución ",
+        " función ",
     ];
     spanish_tokens.iter().any(|t| lower.contains(t))
 }
@@ -116,7 +137,10 @@ fn repair_json_text(text: &str) -> String {
         // Check for missing opening quote on a key: e.g. `key":` instead of `"key":`
         if let Some(colon_pos) = trimmed.find("\":") {
             let candidate_key = &trimmed[..colon_pos];
-            if !candidate_key.starts_with('"') && !candidate_key.contains(' ') && !candidate_key.is_empty() {
+            if !candidate_key.starts_with('"')
+                && !candidate_key.contains(' ')
+                && !candidate_key.is_empty()
+            {
                 let rest = &trimmed[colon_pos..];
                 repaired_lines.push(format!("{}\"{}{}", indent, candidate_key, rest));
                 continue;

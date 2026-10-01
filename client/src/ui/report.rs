@@ -64,12 +64,18 @@ pub fn save_host_deliberation_report(
             eval.node_id, eval.vote
         ));
         report.push_str(&format!("- **Risk Score**: {} / 10\n", eval.risk_score));
-        report.push_str(&format!("- **Confidence**: {:.0}%\n", eval.confidence * 100.0));
+        report.push_str(&format!(
+            "- **Confidence**: {:.0}%\n",
+            eval.confidence * 100.0
+        ));
         if !eval.model.is_empty() {
             report.push_str(&format!("- **Model**: `{}`\n", eval.model));
         }
         if !eval.prompt_version.is_empty() {
-            report.push_str(&format!("- **Prompt Version**: `{}`\n", eval.prompt_version));
+            report.push_str(&format!(
+                "- **Prompt Version**: `{}`\n",
+                eval.prompt_version
+            ));
         }
         report.push_str(&format!(
             "- **Execution Latency**: {} ms\n",
@@ -97,12 +103,17 @@ pub fn save_host_deliberation_report(
                     f.recommendation.replace('|', "\\|")
                 ));
             }
-            report.push_str("\n");
+            report.push('\n');
 
             // Evidence details
             for (idx, f) in eval.findings.iter().enumerate() {
                 if !f.evidence.is_empty() {
-                    report.push_str(&format!("> **Evidence [{}] ({})**: {}\n\n", idx + 1, f.title, f.evidence));
+                    report.push_str(&format!(
+                        "> **Evidence [{}] ({})**: {}\n\n",
+                        idx + 1,
+                        f.title,
+                        f.evidence
+                    ));
                 }
             }
         }

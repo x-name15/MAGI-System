@@ -36,8 +36,8 @@ pub async fn run_interactive_session(
         config.spacetimedb_database.clone(),
     );
 
-    let orchestrator = MagiOrchestrator::new(config.clone(), is_mock)?
-        .with_custom_skill(custom_skill);
+    let orchestrator =
+        MagiOrchestrator::new(config.clone(), is_mock)?.with_custom_skill(custom_skill);
 
     enable_raw_mode()?;
     let mut stdout = io::stdout();
@@ -88,7 +88,8 @@ pub async fn run_interactive_session(
                                 Ok(records) => {
                                     transcript.push("┌── RECENT SPACETIMEDB DELIBERATION RECORDS ──────────────".to_string());
                                     if records.is_empty() {
-                                        transcript.push("│ (No deliberation records found)".to_string());
+                                        transcript
+                                            .push("│ (No deliberation records found)".to_string());
                                     } else {
                                         for r in &records {
                                             let short_title = if r.title.len() > 28 {
@@ -105,7 +106,8 @@ pub async fn run_interactive_session(
                                     transcript.push("└─────────────────────────────────────────────────────────".to_string());
                                 }
                                 Err(e) => {
-                                    transcript.push(format!("[ERROR] Failed to fetch history: {}", e));
+                                    transcript
+                                        .push(format!("[ERROR] Failed to fetch history: {}", e));
                                 }
                             }
                             last_event = "History fetched".to_string();
@@ -123,25 +125,49 @@ pub async fn run_interactive_session(
                                     ));
                                 }
                                 Ok(false) => {
-                                    transcript.push("[STATUS] SpacetimeDB engine: UNINITIALIZED".to_string());
+                                    transcript.push(
+                                        "[STATUS] SpacetimeDB engine: UNINITIALIZED".to_string(),
+                                    );
                                 }
                                 Err(e) => {
-                                    transcript.push(format!("[STATUS] SpacetimeDB connection error: {}", e));
+                                    transcript.push(format!(
+                                        "[STATUS] SpacetimeDB connection error: {}",
+                                        e
+                                    ));
                                 }
                             }
                             last_event = "Status check complete".to_string();
                         }
                         "help" => {
-                            transcript.push("┌── MAGI NERV CONSOLE GUIDE ──────────────────────────────".to_string());
-                            transcript.push("│ • status      : Ping SpacetimeDB engine and check connection".to_string());
-                            transcript.push("│ • history     : Display recent deliberation records".to_string());
-                            transcript.push("│ • clear       : Clear console transcript buffer".to_string());
-                            transcript.push("│ • exit / quit : Leave NERV Command Deck".to_string());
+                            transcript.push(
+                                "┌── MAGI NERV CONSOLE GUIDE ──────────────────────────────"
+                                    .to_string(),
+                            );
+                            transcript.push(
+                                "│ • status      : Ping SpacetimeDB engine and check connection"
+                                    .to_string(),
+                            );
+                            transcript.push(
+                                "│ • history     : Display recent deliberation records".to_string(),
+                            );
+                            transcript.push(
+                                "│ • clear       : Clear console transcript buffer".to_string(),
+                            );
+                            transcript
+                                .push("│ • exit / quit : Leave NERV Command Deck".to_string());
                             transcript.push("│ • <query>     : Deliberate on proposal, code, incident, or prompt:".to_string());
                             transcript.push("│     - 'revisa docs/IDEA.md'".to_string());
-                            transcript.push("│     - 'panic: connection pool index out of bounds'".to_string());
-                            transcript.push("│     - '¿Es conveniente migrar a microservicios en Rust?'".to_string());
-                            transcript.push("└─────────────────────────────────────────────────────────".to_string());
+                            transcript.push(
+                                "│     - 'panic: connection pool index out of bounds'".to_string(),
+                            );
+                            transcript.push(
+                                "│     - '¿Es conveniente migrar a microservicios en Rust?'"
+                                    .to_string(),
+                            );
+                            transcript.push(
+                                "└─────────────────────────────────────────────────────────"
+                                    .to_string(),
+                            );
                             last_event = "Help displayed".to_string();
                         }
                         _ => {}
@@ -487,11 +513,7 @@ fn render_tui(
         Line::from("The designated triage specialist opens the case; the Trinity always decides."),
         Line::from(format!("Last event: {}", last_event)),
     ];
-    body_lines.extend(
-        transcript
-            .iter()
-            .map(|entry| Line::from(entry.as_str())),
-    );
+    body_lines.extend(transcript.iter().map(|entry| Line::from(entry.as_str())));
     let visible_body_height = areas[1].height.saturating_sub(2) as usize;
     let body_scroll = body_lines.len().saturating_sub(visible_body_height) as u16;
     let body = Paragraph::new(body_lines)

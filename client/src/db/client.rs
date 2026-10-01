@@ -53,8 +53,13 @@ fn sql_rows(value: &serde_json::Value) -> Vec<&serde_json::Value> {
     }
 }
 
-fn sql_field<'a>(row: &'a serde_json::Value, index: usize, name: &str) -> Option<&'a serde_json::Value> {
-    row.get(name).or_else(|| row.as_array().and_then(|values| values.get(index)))
+fn sql_field<'a>(
+    row: &'a serde_json::Value,
+    index: usize,
+    name: &str,
+) -> Option<&'a serde_json::Value> {
+    row.get(name)
+        .or_else(|| row.as_array().and_then(|values| values.get(index)))
 }
 
 /// SpacetimeDB client communicating via HTTP/REST protocol.
@@ -269,36 +274,36 @@ impl SpacetimeClient {
         while start.elapsed() < max_duration {
             if let Ok(res) = self.query_sql(&sql).await {
                 if let Some(row) = sql_rows(&res).first() {
-                        let verdict = sql_field(row, 1, "verdict")
-                            .and_then(|v| v.as_str())
-                            .unwrap_or("UNKNOWN")
-                            .to_string();
+                    let verdict = sql_field(row, 1, "verdict")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("UNKNOWN")
+                        .to_string();
 
-                        let tally_approves = sql_field(row, 2, "tally_approves")
-                            .and_then(|v| v.as_u64())
-                            .unwrap_or(0) as u8;
+                    let tally_approves = sql_field(row, 2, "tally_approves")
+                        .and_then(|v| v.as_u64())
+                        .unwrap_or(0) as u8;
 
-                        let tally_rejects = sql_field(row, 3, "tally_rejects")
-                            .and_then(|v| v.as_u64())
-                            .unwrap_or(0) as u8;
+                    let tally_rejects = sql_field(row, 3, "tally_rejects")
+                        .and_then(|v| v.as_u64())
+                        .unwrap_or(0) as u8;
 
-                        let tally_neutrals = sql_field(row, 4, "tally_neutrals")
-                            .and_then(|v| v.as_u64())
-                            .unwrap_or(0) as u8;
+                    let tally_neutrals = sql_field(row, 4, "tally_neutrals")
+                        .and_then(|v| v.as_u64())
+                        .unwrap_or(0) as u8;
 
-                        let summary = sql_field(row, 5, "summary")
-                            .and_then(|v| v.as_str())
-                            .unwrap_or("")
-                            .to_string();
+                    let summary = sql_field(row, 5, "summary")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("")
+                        .to_string();
 
-                        return Ok(ConsensusResultRecord {
-                            deliberation_id,
-                            verdict,
-                            tally_approves,
-                            tally_rejects,
-                            tally_neutrals,
-                            summary,
-                        });
+                    return Ok(ConsensusResultRecord {
+                        deliberation_id,
+                        verdict,
+                        tally_approves,
+                        tally_rejects,
+                        tally_neutrals,
+                        summary,
+                    });
                 }
             }
 
@@ -433,45 +438,45 @@ impl SpacetimeClient {
         let mut evaluations = Vec::new();
 
         for row in sql_rows(&votes_res) {
-                let node_id = sql_field(row, 0, "node_id")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("")
-                    .to_string();
-                let argument = sql_field(row, 1, "argument")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("")
-                    .to_string();
-                let cwe_str = sql_field(row, 2, "cwe_flags")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("[]");
-                let cwe_flags: Vec<String> = serde_json::from_str(cwe_str).unwrap_or_default();
-                let vote = sql_field(row, 3, "vote")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("")
-                    .to_string();
-                let risk_score = sql_field(row, 4, "risk_score")
-                    .and_then(|v| v.as_u64())
-                    .unwrap_or(0) as u8;
-                let execution_time_ms = sql_field(row, 5, "execution_time_ms")
-                    .and_then(|v| v.as_u64())
-                    .unwrap_or(0) as u32;
+            let node_id = sql_field(row, 0, "node_id")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+            let argument = sql_field(row, 1, "argument")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+            let cwe_str = sql_field(row, 2, "cwe_flags")
+                .and_then(|v| v.as_str())
+                .unwrap_or("[]");
+            let cwe_flags: Vec<String> = serde_json::from_str(cwe_str).unwrap_or_default();
+            let vote = sql_field(row, 3, "vote")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+            let risk_score = sql_field(row, 4, "risk_score")
+                .and_then(|v| v.as_u64())
+                .unwrap_or(0) as u8;
+            let execution_time_ms = sql_field(row, 5, "execution_time_ms")
+                .and_then(|v| v.as_u64())
+                .unwrap_or(0) as u32;
 
-                evaluations.push(crate::llm::NodeEvaluation {
-                    node_id,
-                    vote,
-                    risk_score,
-                    findings: Vec::new(),
-                    rationale: argument.clone(),
-                    argument,
-                    confidence: 1.0,
-                    cwe_flags,
-                    execution_time_ms,
-                    prompt_version: String::new(),
-                    model: String::new(),
-                    initial_argument: None,
-                    initial_vote: None,
-                    initial_risk_score: None,
-                });
+            evaluations.push(crate::llm::NodeEvaluation {
+                node_id,
+                vote,
+                risk_score,
+                findings: Vec::new(),
+                rationale: argument.clone(),
+                argument,
+                confidence: 1.0,
+                cwe_flags,
+                execution_time_ms,
+                prompt_version: String::new(),
+                model: String::new(),
+                initial_argument: None,
+                initial_vote: None,
+                initial_risk_score: None,
+            });
         }
 
         // Query consensus result

@@ -71,18 +71,18 @@ impl MagiOrchestrator {
         let (base_b, _) = self.prompt_loader.load_node_prompt("Balthasar-2");
         let (base_c, _) = self.prompt_loader.load_node_prompt("Casper-3");
 
-        let prompt_m = self.prompt_loader.compose_prompt(&base_m, self.custom_skill.as_deref());
-        let prompt_b = self.prompt_loader.compose_prompt(&base_b, self.custom_skill.as_deref());
-        let prompt_c = self.prompt_loader.compose_prompt(&base_c, self.custom_skill.as_deref());
+        let prompt_m = self
+            .prompt_loader
+            .compose_prompt(&base_m, self.custom_skill.as_deref());
+        let prompt_b = self
+            .prompt_loader
+            .compose_prompt(&base_b, self.custom_skill.as_deref());
+        let prompt_c = self
+            .prompt_loader
+            .compose_prompt(&base_c, self.custom_skill.as_deref());
 
-        self.deliberate_trinity(
-            &prompt_m,
-            &prompt_b,
-            &prompt_c,
-            instructions,
-            idea_markdown,
-        )
-        .await
+        self.deliberate_trinity(&prompt_m, &prompt_b, &prompt_c, instructions, idea_markdown)
+            .await
     }
 
     /// Case 2: Evaluates code maintenance under specific team guidelines.
@@ -101,9 +101,15 @@ impl MagiOrchestrator {
         let (base_b, _) = self.prompt_loader.load_node_prompt("Balthasar-2");
         let (base_c, _) = self.prompt_loader.load_node_prompt("Casper-3");
 
-        let prompt_m = self.prompt_loader.compose_prompt(&base_m, self.custom_skill.as_deref());
-        let prompt_b = self.prompt_loader.compose_prompt(&base_b, self.custom_skill.as_deref());
-        let prompt_c = self.prompt_loader.compose_prompt(&base_c, self.custom_skill.as_deref());
+        let prompt_m = self
+            .prompt_loader
+            .compose_prompt(&base_m, self.custom_skill.as_deref());
+        let prompt_b = self
+            .prompt_loader
+            .compose_prompt(&base_b, self.custom_skill.as_deref());
+        let prompt_c = self
+            .prompt_loader
+            .compose_prompt(&base_c, self.custom_skill.as_deref());
 
         self.deliberate_trinity(
             &prompt_m,
@@ -145,7 +151,9 @@ impl MagiOrchestrator {
             _ => &base_c,
         };
 
-        let opening_prompt = self.prompt_loader.compose_prompt(base_lead, self.custom_skill.as_deref());
+        let opening_prompt = self
+            .prompt_loader
+            .compose_prompt(base_lead, self.custom_skill.as_deref());
 
         let opening_instruction = format!(
             "You have been selected as LEAD NODE ({}) to triage this incident. \
@@ -154,12 +162,7 @@ impl MagiOrchestrator {
         );
 
         let evaluation = provider
-            .evaluate(
-                lead_node,
-                &opening_prompt,
-                &opening_instruction,
-                &combined,
-            )
+            .evaluate(lead_node, &opening_prompt, &opening_instruction, &combined)
             .await?;
 
         let full_prompt = format!(
@@ -169,9 +172,15 @@ impl MagiOrchestrator {
         );
         let full_context = format!("{}\n\nLEAD NODE: {}", combined, lead_node);
 
-        let prompt_full_m = self.prompt_loader.compose_prompt(&base_m, self.custom_skill.as_deref());
-        let prompt_full_b = self.prompt_loader.compose_prompt(&base_b, self.custom_skill.as_deref());
-        let prompt_full_c = self.prompt_loader.compose_prompt(&base_c, self.custom_skill.as_deref());
+        let prompt_full_m = self
+            .prompt_loader
+            .compose_prompt(&base_m, self.custom_skill.as_deref());
+        let prompt_full_b = self
+            .prompt_loader
+            .compose_prompt(&base_b, self.custom_skill.as_deref());
+        let prompt_full_c = self
+            .prompt_loader
+            .compose_prompt(&base_c, self.custom_skill.as_deref());
 
         let full_trinity = self
             .deliberate_trinity(

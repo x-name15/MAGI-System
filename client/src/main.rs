@@ -226,7 +226,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let content = PromptLoader::load_custom_skill(skill_path).map_err(|e| {
             MagiError::Io(std::io::Error::new(
                 std::io::ErrorKind::NotFound,
-                format!("Failed to load custom skill from '{}': {}", skill_path.display(), e),
+                format!(
+                    "Failed to load custom skill from '{}': {}",
+                    skill_path.display(),
+                    e
+                ),
             ))
         })?;
         println!(
@@ -247,7 +251,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             } else {
                 let query_str = cli.query.join(" ");
                 let intent = ui::intent::process_user_intent(&query_str);
-                return execute_inferred_intent(intent, config, is_mock, custom_skill_content).await;
+                return execute_inferred_intent(intent, config, is_mock, custom_skill_content)
+                    .await;
             }
         }
     };
@@ -753,8 +758,8 @@ async fn execute_inferred_intent(
         config.spacetimedb_uri.clone(),
         config.spacetimedb_database.clone(),
     );
-    let orchestrator = MagiOrchestrator::new(config.clone(), is_mock)?
-        .with_custom_skill(custom_skill);
+    let orchestrator =
+        MagiOrchestrator::new(config.clone(), is_mock)?.with_custom_skill(custom_skill);
 
     match intent {
         ui::intent::InferredIntent::SystemCommand(cmd) => match cmd.as_str() {

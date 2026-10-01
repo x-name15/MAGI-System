@@ -34,8 +34,8 @@ impl MagiConfig {
 
         let spacetimedb_uri =
             env::var("SPACETIMEDB_URI").unwrap_or_else(|_| "http://127.0.0.1:3000".to_string());
-            let spacetimedb_database =
-                env::var("SPACETIMEDB_DATABASE").unwrap_or_else(|_| "magi-system".to_string());
+        let spacetimedb_database =
+            env::var("SPACETIMEDB_DATABASE").unwrap_or_else(|_| "magi-system".to_string());
 
         let timeout_seconds = env::var("MAGI_TIMEOUT_SECONDS")
             .ok()

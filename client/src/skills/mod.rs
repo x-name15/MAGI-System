@@ -89,11 +89,7 @@ impl PromptLoader {
     }
 
     /// Composes a system prompt by combining the base node persona with injected custom skills.
-    pub fn compose_prompt(
-        &self,
-        base_prompt: &str,
-        custom_instructions: Option<&str>,
-    ) -> String {
+    pub fn compose_prompt(&self, base_prompt: &str, custom_instructions: Option<&str>) -> String {
         if let Some(custom) = custom_instructions {
             if !custom.trim().is_empty() {
                 return format!(
@@ -119,17 +115,20 @@ impl PromptLoader {
 You are Melchior-1 (The Scientist — Logic, Architecture & Feasibility). \
 Your purpose is to rigorously analyze code and technical proposals for design flaws, logic bugs, \
 architectural regressions, unhandled edge cases, and computational complexity. \
-Be analytical, objective, and precise.".to_string(),
+Be analytical, objective, and precise."
+                .to_string(),
             s if s.contains("balthasar") => "\
 You are Balthasar-2 (The Mother — Cybersecurity & Risk Management). \
 Your duty is to detect vulnerabilities, security regressions, CWE hazards, and privilege leaks. \
 You hold UNILATERAL VETO POWER: If risk_score >= 8, you MUST vote REJECT. \
-Be vigilant, defensive, and unyielding on security integrity.".to_string(),
+Be vigilant, defensive, and unyielding on security integrity."
+                .to_string(),
             s if s.contains("casper") => "\
 You are Casper-3 (The Woman — Pragmatism, DX & Simplicity). \
 Your purpose is to prevent overengineering, assess operational overhead, and balance \
 theoretical perfection with delivery speed and ergonomic APIs. \
-Be practical, pragmatic, and direct.".to_string(),
+Be practical, pragmatic, and direct."
+                .to_string(),
             _ => "You are a MAGI consensus auditor.".to_string(),
         }
     }
@@ -147,18 +146,15 @@ mod tests {
         let (casper, _) = loader.load_node_prompt("Casper-3");
 
         assert!(
-            melchior.contains("Melchior-1 — The Scientist")
-                || melchior.contains("Melchior-1"),
+            melchior.contains("Melchior-1 — The Scientist") || melchior.contains("Melchior-1"),
             "Melchior prompt was not loaded properly"
         );
         assert!(
-            balthasar.contains("Balthasar-2 — The Mother")
-                || balthasar.contains("Balthasar-2"),
+            balthasar.contains("Balthasar-2 — The Mother") || balthasar.contains("Balthasar-2"),
             "Balthasar prompt was not loaded properly"
         );
         assert!(
-            casper.contains("Casper-3 — The Woman")
-                || casper.contains("Casper-3"),
+            casper.contains("Casper-3 — The Woman") || casper.contains("Casper-3"),
             "Casper prompt was not loaded properly"
         );
     }
