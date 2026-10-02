@@ -5,6 +5,7 @@
 //! Docker containers are killed, developer context, structured findings, and
 //! deliberation verdicts remain immediately inspectable and reproducible.
 
+use crate::i18n::{get_bundle, Language};
 use crate::llm::NodeEvaluation;
 use std::fs;
 use std::path::Path;
@@ -25,6 +26,12 @@ pub fn save_host_deliberation_report(
     if !dir.exists() {
         let _ = fs::create_dir_all(dir);
     }
+
+    // Detect language from title, summary, or input context
+    let combined_text = format!("{} {} {}", title, summary, input_context);
+    let lang = Language::detect(&combined_text);
+    let bundle = get_bundle(lang);
+    let r = &bundle.report;
 
     let sanitized_title = title
         .to_lowercase()
@@ -48,50 +55,62 @@ pub fn save_host_deliberation_report(
 
     let mut report = String::new();
     report.push_str(&format!(
-        "# 🧠 MAGI Deliberation #{:04}: {}\n\n",
-        deliberation_id, title
+        "# {} #{:04}: {}\n\n",
+        r.title_prefix, deliberation_id, title
     ));
-    report.push_str(&format!("- **Category**: {}\n", category));
-    report.push_str(&format!("- **Context Type**: {}\n", context_type));
-    report.push_str(&format!("- **Consensus Verdict**: **{}**\n", verdict));
-    report.push_str(&format!("- **Summary**: {}\n\n", summary));
+    report.push_str(&format!("- **{}**: {}\n", r.category, category));
+    report.push_str(&format!("- **{}**: {}\n", r.context_type, context_type));
+    report.push_str(&format!("- **{}**: **{}**\n", r.consensus_verdict, verdict));
+    report.push_str(&format!("- **{}**: {}\n\n", r.summary, summary));
     report.push_str("---\n\n");
-    report.push_str("## 🧬 The Trinity Votes & Analytical Arguments\n\n");
+    report.push_str(&format!("## {}\n\n", r.trinity_header));
 
     for eval in evaluations {
         report.push_str(&format!(
-            "### Node: {} — Vote: `{}`\n\n",
-            eval.node_id, eval.vote
+            "### {}: {} — {}: `{}`\n\n",
+            r.node_prefix, eval.node_id, r.vote_prefix, eval.vote
         ));
-        report.push_str(&format!("- **Risk Score**: {} / 10\n", eval.risk_score));
         report.push_str(&format!(
-            "- **Confidence**: {:.0}%\n",
+            "- **{}**: {} / 10\n",
+            r.risk_score, eval.risk_score
+        ));
+        report.push_str(&format!(
+            "- **{}**: {:.0}%\n",
+            r.confidence,
             eval.confidence * 100.0
         ));
         if !eval.model.is_empty() {
-            report.push_str(&format!("- **Model**: `{}`\n", eval.model));
+            report.push_str(&format!("- **{}**: `{}`\n", r.model, eval.model));
         }
         if !eval.prompt_version.is_empty() {
             report.push_str(&format!(
-                "- **Prompt Version**: `{}`\n",
-                eval.prompt_version
+                "- **{}**: `{}`\n",
+                r.prompt_version, eval.prompt_version
             ));
         }
         report.push_str(&format!(
-            "- **Execution Latency**: {} ms\n",
-            eval.execution_time_ms
+            "- **{}**: {} ms\n",
+            r.execution_latency, eval.execution_time_ms
         ));
         if !eval.cwe_flags.is_empty() {
             report.push_str(&format!(
-                "- **CWE Flags Detected**: {}\n",
+                "- **{}**: {}\n",
+                r.cwe_flags,
                 eval.cwe_flags.join(", ")
             ));
         }
 
         // Render structured findings table if findings were reported
         if !eval.findings.is_empty() {
-            report.push_str("\n#### Structured Findings:\n\n");
-            report.push_str("| Category | Severity | Title | Impact | Recommendation |\n");
+            report.push_str(&format!("\n#### {}:\n\n", r.structured_findings));
+            report.push_str(&format!(
+                "| {} | {} | {} | {} | {} |\n",
+                r.table_category,
+                r.table_severity,
+                r.table_title,
+                r.table_impact,
+                r.table_recommendation
+            ));
             report.push_str("| :--- | :--- | :--- | :--- | :--- |\n");
             for f in &eval.findings {
                 report.push_str(&format!(
@@ -109,7 +128,8 @@ pub fn save_host_deliberation_report(
             for (idx, f) in eval.findings.iter().enumerate() {
                 if !f.evidence.is_empty() {
                     report.push_str(&format!(
-                        "> **Evidence [{}] ({})**: {}\n\n",
+                        "> **{} [{}] ({})**: {}\n\n",
+                        r.evidence_prefix,
                         idx + 1,
                         f.title,
                         f.evidence
@@ -128,31 +148,33 @@ pub fn save_host_deliberation_report(
             let init_vote = eval.initial_vote.as_deref().unwrap_or("N/A");
             let init_risk = eval.initial_risk_score.unwrap_or(0);
             report.push_str(&format!(
-                "\n#### 🔍 Ronda 1: Postura Inicial Independiente\n- **Voto Inicial**: `{}` | **Riesgo Inicial**: {} / 10\n\n{}\n\n",
-                init_vote, init_risk, init_arg
+                "\n#### {}\n- **{}**: `{}` | **{}**: {} / 10\n\n{}\n\n",
+                r.round1_title, r.round1_vote, init_vote, r.round1_risk, init_risk, init_arg
             ));
             report.push_str(&format!(
-                "#### ⚔️ Ronda 2: Dictamen Final tras Debate Cruzado\n- **Voto Final**: `{}` | **Riesgo Final**: {} / 10\n\n{}\n\n",
-                eval.vote, eval.risk_score, rationale_display
+                "#### {}\n- **{}**: `{}` | **{}**: {} / 10\n\n{}\n\n",
+                r.round2_title,
+                r.round2_vote,
+                eval.vote,
+                r.round2_risk,
+                eval.risk_score,
+                rationale_display
             ));
         } else {
             report.push_str(&format!(
-                "\n#### Analysis / Rationale:\n\n{}\n\n",
-                rationale_display
+                "\n#### {}:\n\n{}\n\n",
+                r.analysis_title, rationale_display
             ));
         }
     }
 
     report.push_str("---\n\n");
-    report.push_str("## 📄 Evaluated Context / Source Code\n\n```text\n");
+    report.push_str(&format!("## {}\n\n```text\n", r.context_header));
     report.push_str(input_context);
     report.push_str("\n```\n");
 
     match fs::write(&filepath, report) {
-        Ok(_) => println!(
-            "[HOST PERSISTENCE] Deliberation and context saved: {}",
-            filepath.display()
-        ),
+        Ok(_) => println!("[HOST PERSISTENCE] {}: {}", r.saved_msg, filepath.display()),
         Err(e) => eprintln!(
             "Warning: Unable to save host deliberation report {}: {}",
             filepath.display(),

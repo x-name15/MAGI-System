@@ -1,0 +1,41 @@
+{
+  "report": {
+    "title_prefix": "Deliberación MAGI",
+    "category": "Categoría",
+    "context_type": "Tipo de Contexto",
+    "consensus_verdict": "Veredicto de Consenso",
+    "summary": "Resumen",
+    "trinity_header": "Votos de la Trinidad y Argumentos Analíticos",
+    "node_prefix": "Nodo",
+    "vote_prefix": "Voto",
+    "risk_score": "Nivel de Riesgo",
+    "confidence": "Confianza",
+    "model": "Modelo",
+    "prompt_version": "Versión del Prompt",
+    "execution_latency": "Latencia de Ejecución",
+    "cwe_flags": "Flags CWE Detectados",
+    "structured_findings": "Hallazgos Estructurados",
+    "table_category": "Categoría",
+    "table_severity": "Severidad",
+    "table_title": "Título",
+    "table_impact": "Impacto",
+    "table_recommendation": "Recomendación",
+    "evidence_prefix": "Evidencia",
+    "round1_title": "Ronda 1: Postura Inicial Independiente",
+    "round1_vote": "Voto Inicial",
+    "round1_risk": "Riesgo Inicial",
+    "round2_title": "Ronda 2: Dictamen Final tras Debate Cruzado",
+    "round2_vote": "Voto Final",
+    "round2_risk": "Riesgo Final",
+    "analysis_title": "Análisis / Justificación",
+    "context_header": "Contexto / Código Fuente Evaluado",
+    "saved_msg": "Deliberación y contexto guardados"
+  },
+  "ui": {
+    "consulting_trinity": "SISTEMA MAGI: CONSULTANDO TRINIDAD Y DEBATIENDO EN PARALELO...",
+    "round1_eval": "RONDA 1: EVALUACIÓN INDEPENDIENTE",
+    "round2_debate": "RONDA 2: DEBATE DE PARES",
+    "consensus_achieved": "RESOLUCIÓN: CONSENSO ALCANZADO",
+    "synthesis": "SÍNTESIS"
+  }
+}

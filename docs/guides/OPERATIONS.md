@@ -1,182 +1,106 @@
-# MAGI System Operations Guide
+# MAGI System — Operations & Runbook 
 
-## Status
+This guide covers container lifecycle management, persistence guarantees, resource limits, security hardening, and operational troubleshooting for MAGI System.
 
-Version `0.1.3` is ready for a local end-to-end smoke test through Docker.
+---
 
-The following checks have passed inside the Docker toolchain:
+## 1. System Status & Verification
 
-- `cargo check --workspace`
-- `cargo test --workspace` with 7 consensus tests passing
-- `cargo clippy --workspace --all-targets -- -D warnings`
-- `cargo fmt --all -- --check`
-- `cargo check -p magi-server --target wasm32-unknown-unknown`
-- Docker Compose configuration validation
-- Release WASM build and local SpacetimeDB publication
+Version `0.1.4` is fully containerized and verified inside the Docker toolchain:
 
-The local module is published as the SpacetimeDB database `magi-system`.
+* `cargo check --workspace` — **Passed**
+* `cargo test --workspace` — **Passed (12/12 unit, i18n & consensus tests)**
+* `cargo clippy --workspace --all-targets -- -D warnings` — **Passed (0 warnings)**
+* `cargo fmt --all -- --check` — **Passed (0 diffs)**
+* `cargo check -p magi-server --target wasm32-unknown-unknown` — **Passed**
 
-## What Was Corrected
+---
 
-### MAGI deliberation
+## 2. Architecture & Persistence Model
 
-- Added a two-round Trinity protocol.
-- Round one produces independent Melchior, Balthasar, and Casper positions.
-- Round two gives those positions back to all three nodes for challenge and final voting.
-- Triage uses a specialist for the opening diagnosis, but the final decision always requires the full Trinity.
-- Balthasar's `REJECT` with risk `8..=10` still has unilateral veto authority.
-- Final consensus is calculated atomically by the SpacetimeDB reducer.
+MAGI utilizes an **ephemeral container lifecycle with host-bound persistence**:
 
-### Integrity and concurrency
+* **Database Persistence:** SpacetimeDB table state and consensus histories are bound to `./.spacetimedb_data:/stdb`. Containers can be stopped, killed, or recreated without data loss.
+* **Audit Report Persistence:** Every deliberation automatically writes a human-readable Markdown summary to `./deliberations/deliberation_XXXXXX_<slug>.md`.
+* **Resource Quotas:**
+  * `magi-spacetimedb`: `mem_limit: 512m` (reserva `128m`), `cpus: 1.0`
+  * `magi` client container: `mem_limit: 2g` (reserva `512m`), `cpus: 2.0`
+* **Cargo Caches:** Crates and git dependencies are cached in Docker named volumes (`cargo_cache`, `cargo_git`) to keep the host directory clean.
 
-- Deliberations use a unique request correlation ID.
-- Unknown nodes, duplicate votes, invalid postures, invalid assignments, and invalid risk scores are rejected by the server.
-- Timeout handling cancels provider futures instead of leaving detached tasks running.
-- Database failures no longer become fabricated local consensus results; the UI reports `CONSENSUS_UNAVAILABLE`.
+---
 
-### TUI and reporting
+## 3. Container Management
 
-- Replaced the line-oriented console with `ratatui` and `crossterm`.
-- Renamed the module to `client/src/ui/tui.rs`.
-- The TUI keeps a visible transcript of verdicts, summaries, risks, votes, and final positions.
-- Markdown reports are persisted in `deliberations/`.
-
-### Docker and toolchain
-
-- The development image uses Rust `1.90-slim-bookworm`, required by SpacetimeDB `1.12`.
-- The unused interactive SpacetimeDB CLI installer was removed from the development image.
-- `.dockerignore` excludes secrets, build artifacts, database state, and reports from the build context.
-- `magi-dev` is behind the `dev` Compose profile and has a 2 GB memory limit and 2 CPU limit.
-- SpacetimeDB has a 512 MB memory limit and 1 CPU limit.
-- `docker compose up` starts only SpacetimeDB; the development container is started explicitly.
-
-## Provider Variables
-
-Each node has its own provider selector:
-
-- `MELCHIOR_PROVIDER`
-- `BALTHASAR_PROVIDER`
-- `CASPER_PROVIDER`
-
-These variables select the HTTP protocol adapter, not the MAGI persona. Supported values are:
-
-- `openai`: OpenAI-compatible `/chat/completions` endpoints, including compatible Gemini, Groq, OpenRouter, and DeepSeek endpoints.
-- `anthropic`: Anthropic `/v1/messages` endpoint.
-- `ollama`: Ollama `/api/generate` endpoint.
-
-The persona remains fixed by the node module. The provider, model, endpoint, and API key are configurable independently for each node.
-
-## First-Time Local Setup
-
-1. Copy `.env.example` to `.env`.
-2. Put test credentials in `.env` if using remote providers. Do not commit `.env`.
-3. Keep `SPACETIMEDB_DATABASE=magi-system`; this is the published local module name.
-4. Start the database:
+### Using PowerShell Automation (`magi.ps1`)
 
 ```powershell
+# Start SpacetimeDB daemon and compile/publish server WASM module
+.\magi.ps1 start
+
+# Recompile the workspace
+.\magi.ps1 build
+
+# Execute test suite
+.\magi.ps1 test
+
+# Stop SpacetimeDB container
+.\magi.ps1 stop
+
+# Clean build artifacts
+.\magi.ps1 clean
+```
+
+### Using Docker Compose Directly
+
+```bash
+# Start SpacetimeDB in the background
 docker compose up -d spacetimedb
-```
 
-5. Build the server module:
+# Run a deliberation
+docker compose run --rm magi idea docs/rfcs/ROADMAP.md
 
-```powershell
-docker compose run --rm magi-dev cargo build -p magi-server --target wasm32-unknown-unknown --release
-```
-
-6. Publish the WASM module to the local SpacetimeDB instance:
-
-```powershell
-docker compose exec spacetimedb spacetime publish `
-  --server local `
-  --bin-path /workspace/target/wasm32-unknown-unknown/release/magi_server.wasm `
-  --yes magi-system
-```
-
-The `spacetimedb` service mounts the workspace read-only at `/workspace` only for this publication step.
-
-## Smoke Tests
-
-### Deterministic mock deliberation
-
-```powershell
-docker compose run --rm magi-dev cargo run --bin magi -- idea docs/IDEA.md --mock
-```
-
-### Balthasar veto simulation
-
-```powershell
-docker compose run --rm magi-dev cargo run --bin magi -- idea docs/IDEA.md --mock --simulate-veto
-```
-
-Expected result: `VETO_BALTHASAR_SECURITY`.
-
-### Universal prompt-only deliberation
-
-```powershell
-docker compose run --rm magi-dev cargo run --bin magi -- deliberate `
-  --prompt "Should this service use a queue or synchronous HTTP for critical writes?" `
-  --mock
-```
-
-### Error triage through the full Trinity
-
-```powershell
-docker compose run --rm magi-dev cargo run --bin magi -- triage `
-  "Error: JWT signature validation failed" `
-  --code fixtures/sample_auth_service.rs `
-  --mock
-```
-
-Expected flow:
-
-1. The classifier selects the opening specialist.
-2. The specialist produces an opening diagnosis.
-3. All three nodes debate the incident.
-4. The three final positions are persisted.
-5. SpacetimeDB calculates and persists the final verdict.
-
-### TUI
-
-```powershell
-docker compose run --rm magi-dev cargo run --bin magi -- console --mock
-```
-
-Use keyboard input in the terminal UI. Press `Enter` to submit a request and `Esc` to leave the interface.
-
-## Inspecting Results
-
-```powershell
-docker compose run --rm magi-dev cargo run --bin magi -- status
-docker compose run --rm magi-dev cargo run --bin magi -- history
-docker compose run --rm magi-dev cargo run --bin magi -- show <DELIBERATION_ID>
-```
-
-Human-readable reports are saved under `deliberations/`. SpacetimeDB state is stored under `.spacetimedb_data/`.
-
-## Shutdown
-
-Stop the database without deleting persisted state:
-
-```powershell
+# Stop SpacetimeDB
 docker compose stop spacetimedb
-```
 
-Remove the database container while retaining host-bound state:
-
-```powershell
+# Remove SpacetimeDB container (database files in ./.spacetimedb_data remain intact)
 docker compose rm -f spacetimedb
 ```
 
-Do not delete `.spacetimedb_data/` unless a clean database is intentionally required.
+---
 
-## Documentation Layout
+## 4. Smoke Testing & Verification
 
-- `README.md`: project overview and public quick reference.
-- `CHANGELOG.md`: release source of truth used by automation.
-- `docs/OPERATIONS.md`: this setup, deployment, and testing guide.
-- `docs/ARCHITECTURE.md`: system design and data flow.
-- `docs/IDEA.md`: original project proposal and evolution.
-- `docs/LOG.md`: engineering decisions.
-- `docs/ROADMAP.md`: future work.
-- `.github/*.md`: GitHub governance and contribution policies.
-- `fixtures/*.md`: test input data, not project documentation.
+### 1. Deterministic Mock Deliberation
+```powershell
+.\magi.ps1 idea docs/rfcs/ROADMAP.md --mock
+```
+
+### 2. Balthasar Security Veto Simulation
+```powershell
+.\magi.ps1 idea docs/rfcs/ROADMAP.md --mock --simulate-veto
+```
+*Expected Result:* `VETO_BALTHASAR_SECURITY` triggered with risk score `10/10`.
+
+### 3. Incident Triage with Specialist Routing
+```powershell
+.\magi.ps1 triage logs/panic.log --code client/src/main.rs --mock
+```
+*Expected Flow:*
+1. Specialist routing assigns opening analysis to the relevant persona (e.g. Casper-3 for config, Balthasar-2 for security, Melchior-1 for panics).
+2. Specialist generates initial diagnosis.
+3. Full Trinity conducts a 2-round cross-peer debate.
+4. SpacetimeDB calculates and seals the atomic consensus result.
+
+### 4. Interactive TUI Smoke Test
+```powershell
+.\magi.ps1 tui --mock
+```
+
+---
+
+## 5. Security & Isolation
+
+1. **Least Privilege Principle:** SpacetimeDB only mounts `./.spacetimedb_data:/stdb`, preventing arbitrary access to host source code or private keys.
+2. **Package Hardening:** `Dockerfile.dev` runs `apt-get upgrade -y` to patch Debian base OS CVEs.
+3. **Secret Isolation:** `.env` is ignored in `.gitignore` and `.dockerignore`.
+4. **Fail-Closed Consensus:** If the SpacetimeDB connection is disrupted, the client reports `CONSENSUS_UNAVAILABLE` rather than fabricating an unverified verdict.

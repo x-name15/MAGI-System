@@ -12,6 +12,7 @@ mod config;
 mod core;
 mod db;
 mod error;
+mod i18n;
 mod llm;
 mod skills;
 mod ui;
@@ -31,9 +32,7 @@ use ui::NervTheme;
 /// CLI argument parser for MAGI System.
 #[derive(Parser, Debug)]
 #[command(name = "magi")]
-#[command(author = "Felix Manrique")]
-#[command(version = "0.1.3")]
-#[command(about = "Event-driven multi-agent LLM consensus engine powered by SpacetimeDB", long_about = None)]
+#[command(author, version, about, long_about = None)]
 struct Cli {
     #[command(subcommand)]
     command: Option<Commands>,

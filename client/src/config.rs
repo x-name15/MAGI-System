@@ -1,4 +1,7 @@
 //! # Dynamic Configuration Loader for MAGI System
+//!
+//! Automatically infers provider settings from available environment variables
+//! or defaults to offline mock simulation without requiring hardcoded configurations.
 
 use crate::error::MagiError;
 use std::env;
@@ -45,13 +48,14 @@ impl MagiConfig {
         let author = env::var("MAGI_AUTHOR")
             .or_else(|_| env::var("USER"))
             .or_else(|_| env::var("USERNAME"))
-            .unwrap_or_else(|_| "auditor@magi".to_string());
+            .unwrap_or_else(|_| "developer@magi".to_string());
 
-        // Dynamic resolution for each of the three MAGI persona modules:
-        let melchior =
-            Self::resolve_node_config("MELCHIOR", "anthropic", "claude-3-5-sonnet-20241022");
-        let balthasar = Self::resolve_node_config("BALTHASAR", "openai", "gpt-4o");
-        let casper = Self::resolve_node_config("CASPER", "ollama", "llama3");
+        // Infer system default provider and model from available keys
+        let (default_provider, default_model) = Self::infer_default_provider_and_model();
+
+        let melchior = Self::resolve_node_config("MELCHIOR", &default_provider, &default_model);
+        let balthasar = Self::resolve_node_config("BALTHASAR", &default_provider, &default_model);
+        let casper = Self::resolve_node_config("CASPER", &default_provider, &default_model);
 
         Ok(Self {
             spacetimedb_uri,
@@ -64,9 +68,62 @@ impl MagiConfig {
         })
     }
 
+    /// Infers the default provider and model based on configured API keys in environment.
+    fn infer_default_provider_and_model() -> (String, String) {
+        if let Ok(p) = env::var("MAGI_PROVIDER").or_else(|_| env::var("DEFAULT_PROVIDER")) {
+            let model = env::var("MAGI_MODEL")
+                .or_else(|_| env::var("DEFAULT_MODEL"))
+                .unwrap_or_else(|_| Self::default_model_for_provider(&p));
+            return (p.to_lowercase(), model);
+        }
+
+        if env::var("GEMINI_API_KEY").is_ok() || env::var("GOOGLE_API_KEY").is_ok() {
+            ("gemini".to_string(), "gemini-2.5-flash".to_string())
+        } else if env::var("OPENAI_API_KEY").is_ok() {
+            ("openai".to_string(), "gpt-4o".to_string())
+        } else if env::var("ANTHROPIC_API_KEY").is_ok() {
+            (
+                "anthropic".to_string(),
+                "claude-3-5-sonnet-20241022".to_string(),
+            )
+        } else if env::var("GROK_API_KEY").is_ok() || env::var("XAI_API_KEY").is_ok() {
+            ("grok".to_string(), "grok-2".to_string())
+        } else if env::var("DEEPSEEK_API_KEY").is_ok() {
+            ("deepseek".to_string(), "deepseek-chat".to_string())
+        } else if env::var("OLLAMA_ENDPOINT").is_ok() || env::var("OLLAMA_BASE_URL").is_ok() {
+            ("ollama".to_string(), "llama3".to_string())
+        } else {
+            ("mock".to_string(), "mock-v1".to_string())
+        }
+    }
+
+    /// Returns the canonical default model for a given provider name.
+    pub fn default_model_for_provider(provider: &str) -> String {
+        match provider.to_lowercase().as_str() {
+            "gemini" => "gemini-2.5-flash".to_string(),
+            "openai" => "gpt-4o".to_string(),
+            "anthropic" => "claude-3-5-sonnet-20241022".to_string(),
+            "grok" | "xai" => "grok-2".to_string(),
+            "deepseek" => "deepseek-chat".to_string(),
+            "ollama" => "llama3".to_string(),
+            _ => "mock-v1".to_string(),
+        }
+    }
+
+    /// Returns the canonical default endpoint for a given provider name.
+    pub fn default_endpoint_for_provider(provider: &str) -> String {
+        match provider.to_lowercase().as_str() {
+            "gemini" => "https://generativelanguage.googleapis.com/v1beta/openai".to_string(),
+            "anthropic" => "https://api.anthropic.com".to_string(),
+            "grok" | "xai" => "https://api.x.ai/v1".to_string(),
+            "deepseek" => "https://api.deepseek.com/v1".to_string(),
+            "ollama" => "http://localhost:11434".to_string(),
+            "mock" => "http://127.0.0.1:0".to_string(),
+            _ => "https://api.openai.com/v1".to_string(),
+        }
+    }
+
     /// Resolves configuration for a specific MAGI persona module.
-    /// Supports assigning ANY provider (OpenAI, Gemini, Grok, Anthropic, DeepSeek, Ollama)
-    /// to ANY persona module (Melchior, Balthasar, Casper).
     pub fn resolve_node_config(
         module_prefix: &str,
         default_provider: &str,
@@ -78,19 +135,19 @@ impl MagiConfig {
             .unwrap_or_else(|_| default_provider.to_string())
             .to_lowercase();
 
-        let model =
-            env::var(format!("{}_MODEL", prefix)).unwrap_or_else(|_| default_model.to_string());
+        let model = env::var(format!("{}_MODEL", prefix))
+            .or_else(|_| env::var("MAGI_MODEL"))
+            .unwrap_or_else(|_| default_model.to_string());
 
-        // Dedicated node-level API key takes priority over provider-level API key
         let api_key =
             env::var(format!("{}_API_KEY", prefix))
                 .ok()
                 .or_else(|| match provider.as_str() {
-                    "anthropic" => env::var("ANTHROPIC_API_KEY").ok(),
-                    "openai" => env::var("OPENAI_API_KEY").ok(),
                     "gemini" => env::var("GEMINI_API_KEY")
                         .ok()
                         .or_else(|| env::var("GOOGLE_API_KEY").ok()),
+                    "openai" => env::var("OPENAI_API_KEY").ok(),
+                    "anthropic" => env::var("ANTHROPIC_API_KEY").ok(),
                     "grok" | "xai" => env::var("GROK_API_KEY")
                         .ok()
                         .or_else(|| env::var("XAI_API_KEY").ok()),
@@ -99,58 +156,37 @@ impl MagiConfig {
                     _ => None,
                 });
 
-        // Resolve base URL / endpoint: node-level override > provider-level override > canonical default
         let base_url = env::var(format!("{}_ENDPOINT", prefix))
             .ok()
             .or_else(|| env::var(format!("{}_BASE_URL", prefix)).ok())
-            .or_else(|| match provider.as_str() {
-                "anthropic" => env::var("ANTHROPIC_BASE_URL")
-                    .ok()
-                    .or_else(|| env::var("ANTHROPIC_ENDPOINT").ok()),
-                "openai" => env::var("OPENAI_BASE_URL")
-                    .ok()
-                    .or_else(|| env::var("OPENAI_ENDPOINT").ok()),
-                "gemini" => env::var("GEMINI_BASE_URL")
-                    .ok()
-                    .or_else(|| env::var("GEMINI_ENDPOINT").ok()),
-                "grok" | "xai" => env::var("GROK_BASE_URL")
-                    .ok()
-                    .or_else(|| env::var("GROK_ENDPOINT").ok()),
-                "deepseek" => env::var("DEEPSEEK_BASE_URL")
-                    .ok()
-                    .or_else(|| env::var("DEEPSEEK_ENDPOINT").ok()),
-                "ollama" => env::var("OLLAMA_BASE_URL")
-                    .ok()
-                    .or_else(|| env::var("OLLAMA_ENDPOINT").ok()),
-                _ => None,
-            })
-            .unwrap_or_else(|| match provider.as_str() {
-                "anthropic" => "https://api.anthropic.com".to_string(),
-                "gemini" => "https://generativelanguage.googleapis.com/v1beta/openai".to_string(),
-                "grok" | "xai" => "https://api.x.ai/v1".to_string(),
-                "deepseek" => "https://api.deepseek.com/v1".to_string(),
-                "ollama" => "http://localhost:11434".to_string(),
-                _ => "https://api.openai.com/v1".to_string(),
-            });
-
-        // If provider wasn't explicitly given, auto-infer from endpoint
-        let resolved_provider = if env::var(format!("{}_PROVIDER", prefix)).is_err() {
-            if base_url.contains("anthropic.com") {
-                "anthropic".to_string()
-            } else if base_url.contains("11434") {
-                "ollama".to_string()
-            } else {
-                provider
-            }
-        } else {
-            provider
-        };
+            .unwrap_or_else(|| Self::default_endpoint_for_provider(&provider));
 
         NodeConfig {
-            provider: resolved_provider,
+            provider,
             model,
             api_key,
             base_url,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_default_model_and_endpoint_resolution() {
+        assert_eq!(
+            MagiConfig::default_model_for_provider("gemini"),
+            "gemini-2.5-flash"
+        );
+        assert_eq!(
+            MagiConfig::default_endpoint_for_provider("gemini"),
+            "https://generativelanguage.googleapis.com/v1beta/openai"
+        );
+        assert_eq!(
+            MagiConfig::default_endpoint_for_provider("anthropic"),
+            "https://api.anthropic.com"
+        );
     }
 }

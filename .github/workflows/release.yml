@@ -27,7 +27,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Extract version
+      - name: Extract version from CHANGELOG
         id: version
         run: |
           if [[ "${{ github.ref_type }}" == "tag" ]]; then
@@ -87,6 +87,22 @@ jobs:
         with:
           key: ${{ matrix.target }}
 
+      - name: Sync Cargo.toml versions from CHANGELOG (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          VERSION="${{ needs.check-tag.outputs.version }}"
+          echo "Syncing manifests to version $VERSION..."
+          sed -i "s/^version = \".*\"/version = \"$VERSION\"/" client/Cargo.toml server/Cargo.toml
+
+      - name: Sync Cargo.toml versions from CHANGELOG (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $ver = "${{ needs.check-tag.outputs.version }}"
+          Write-Host "Syncing manifests to version $ver..."
+          (Get-Content client/Cargo.toml) -replace '^version = ".*"', "version = `"$ver`"" | Set-Content client/Cargo.toml
+          (Get-Content server/Cargo.toml) -replace '^version = ".*"', "version = `"$ver`"" | Set-Content server/Cargo.toml
+
       - name: Build client binary
         run: cargo build --package magi-client --release --target ${{ matrix.target }}
 
@@ -120,6 +136,18 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - name: Sync and commit manifest versions if needed
+        run: |
+          VERSION="${{ needs.check-tag.outputs.version }}"
+          sed -i "s/^version = \".*\"/version = \"$VERSION\"/" client/Cargo.toml server/Cargo.toml
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          if [[ -n $(git status -s client/Cargo.toml server/Cargo.toml) ]]; then
+            git add client/Cargo.toml server/Cargo.toml
+            git commit -m "chore(release): synchronize Cargo.toml to v$VERSION [skip ci]"
+            git push origin main
+          fi
 
       - name: Download all binary artifacts
         uses: actions/download-artifact@v4

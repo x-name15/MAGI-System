@@ -1,4 +1,4 @@
-# MAGI SYSTEM — DOCUMENTO MAESTRO DE ARQUITECTURA
+# MAGI SYSTEM — DOCUMENTO MAESTRO DE ARQUITECTURA 🧠
 
 ## 1. Visión General del Sistema
 
@@ -9,33 +9,31 @@ Inspirado en el superordenador MAGI del universo *Neon Genesis Evangelion*, el s
 ### La Trinidad de Nodos
 * **Melchior-1 (El Científico / Lógica & Arquitectura):**
   * *Enfoque:* Calidad de código, patrones de diseño, mantenibilidad, escalabilidad, rendimiento y complejidad ciclomática.
-  * *Modelo habitual:* Claude 3.5 Sonnet / DeepSeek-R1.
+  * *Arquetipo:* Rigor matemático, análisis de algoritmos y eliminación de antipatrones.
 * **Balthasar-2 (La Madre / Seguridad & Gestión de Riesgo):**
   * *Enfoque:* Auditoría de seguridad, OWASP Top 10, detección de CWEs (Common Weakness Enumeration), sanitización de entradas, exposición de secretos y gestión de permisos.
-  * *Poder especial:* **Capacidad de VETO sobre la deliberación**.
-  * *Modelo habitual:* GPT-4o / Gemini Pro.
-* **Casper-3 (La Persona / Pragmatismo & Experiencia de Desarrollo - DX):**
+  * *Poder especial:* **Capacidad de VETO UNILATERAL sobre la deliberación (`REJECT` con riesgo $\ge 8$)**.
+* **Casper-3 (La Mujer / Pragmatismo & Experiencia de Desarrollo - DX):**
   * *Enfoque:* Viabilidad real de implementación, impacto en la curva de aprendizaje del equipo, sobreingeniería (*overengineering*), costo computacional y simplicidad.
-  * *Modelo habitual:* Llama 3 / Mistral (vía Ollama u otros proveedores).
+  * *Regla estricta:* Cero tolerancia a complejidad o daemons innecesarios para herramientas locales.
 
 ---
 
 ## 2. Arquitectura del Sistema
 
-El sistema utiliza una arquitectura desvinculada (*decoupled*) basada en **SpacetimeDB**, dividida en dos componentes principales dentro de un Cargo Workspace en Rust.
+El sistema utiliza una arquitectura desacoplada (*decoupled*) basada en **SpacetimeDB**, dividida en dos componentes principales dentro de un Cargo Workspace en Rust.
 
 ```text
 ┌────────────────────────────────────────────────────────────────────────┐
-│                              CLIENTE CLI                               │
+│                              CLIENTE CLI / TUI                         │
 │                                                                        │
 │  ┌────────────────┐     ┌──────────────────┐     ┌──────────────────┐  │
 │  │   Melchior-1   │     │   Balthasar-2    │     │     Casper-3     │  │
-│  │ (Anthropic/    │     │ (OpenAI API /    │     │  (Ollama Local / │  │
-│  │ Claude 3.5)    │     │     GPT-4o)      │     │  Google Gemini)  │  │
+│  │  (Arquitectura)│     │(Seguridad & Veto)│     │(Pragmatismo & DX)│  │
 │  └───────┬────────┘     └────────┬─────────┘     └────────┬─────────┘  │
 │          │                       │                        │            │
 │          └───────────────────────┼────────────────────────┘            │
-│                                  │ (concurrent cancellable requests)   │
+│                                  │ (2 Rondas de debate concurrente)    │
 │                                  ▼                                     │
 │                     ┌────────────────────────┐                         │
 │                     │  Orquestador Async CLI │                         │
@@ -60,13 +58,12 @@ El sistema utiliza una arquitectura desvinculada (*decoupled*) basada en **Space
 ```
 
 ### Flujo de Datos (Lifecycle de una Consulta)
-1. **Invocación:** El desarrollador ejecuta `magi audit src/auth.rs --prompt "Revisa la implementación del middleware JWT"`.
+1. **Invocación:** El desarrollador ejecuta `magi idea <file.md>`, `magi maintain <file>`, `magi triage <log>` o usa la consola interactiva `magi tui`.
 2. **Creación de Estado:** El CLI se conecta a SpacetimeDB y ejecuta el reducer `create_deliberation`. La DB asigna un `id` y fija el estado en `PENDING`.
-3. **Suscripción Pub/Sub:** El CLI escucha cambios en tiempo real en las tablas `deliberations` y `node_votes` vía WebSockets.
-4. **Ronda Inicial Concurrente:** El orquestador ejecuta una evaluación paralela y cancelable para Melchior, Balthasar y Casper.
-5. **Debate de la Trinidad:** Cada nodo recibe las posiciones iniciales de los otros nodos, cuestiona sus argumentos y emite una posición final.
-6. **Consenso Automático:** Cuando `node_votes` registra los 3 votos finales para un `deliberation_id`, el motor interno de SpacetimeDB ejecuta `eval_consensus`, aplicando reglas de votación y el Veto de Balthasar.
-7. **Renderizado NERV TUI:** La TUI basada en `ratatui` y `crossterm` conserva el historial de resultados, argumentos y veredictos dentro de la pantalla interactiva.
+3. **Ronda 1 (Evaluación Ciega):** El orquestador ejecuta una evaluación paralela y cancelable para Melchior, Balthasar y Casper sin que conozcan las posturas ajenas (elimina sesgo de anclaje).
+4. **Ronda 2 (Debate de la Trinidad):** Cada nodo recibe las posiciones iniciales de los otros nodos, cuestiona sus argumentos y emite una posición final.
+5. **Consenso Automático:** Los votos finales se envían a SpacetimeDB mediante `submit_node_vote`. El reducer `eval_consensus` aplica deterministamente la regla de Veto de Balthasar y mayorías.
+6. **Renderizado NERV TUI:** Se despliegan los monitores CRT fosforados NERV y se persiste un reporte Markdown estructurado en `deliberations/`.
 
 ---
 
@@ -76,14 +73,14 @@ El sistema utiliza una arquitectura desvinculada (*decoupled*) basada en **Space
 * **Lenguaje:** Rust (`wasm32-unknown-unknown`).
 * **Crate Core:** `spacetimedb` (Esquemas de tablas, índices, llaves primarias y reducers transaccionales).
 
-### Cliente (CLI Orchestrator)
+### Cliente (CLI Orchestrator & TUI)
 * **Lenguaje:** Rust (Edición 2021).
 * **Runtime Asíncrono:** `tokio` (con características `full` para concurrencia HTTP y temporizadores).
-* **Cliente HTTP:** `reqwest` (Soporte JSON para APIs de OpenAI, Anthropic, Google u Ollama).
-* **CLI Parser:** `clap` (Subcomandos, argumentos y banderas).
+* **Cliente HTTP:** `reqwest` (Soporte JSON para APIs de Google Gemini, OpenAI, Anthropic, Ollama, DeepSeek, Grok).
+* **CLI Parser:** `clap` (Subcomandos `idea`, `maintain`, `triage`, argumentos y banderas).
 * **Serialización:** `serde`, `serde_json`.
-* **Interfaz de Usuario / TUI:** `colored` (Colores ANSI), `indicatif` (Spinners), `comfy-table` (Renderizado de tablas).
-* **SpacetimeDB SDK:** `spacetimedb-sdk` (Cliente WebSocket en tiempo real).
+* **Interfaz de Usuario / TUI:** `ratatui` + `crossterm` (consola interactiva) y `colored` / ANSI 24-bit TrueColor (monitores fosforados NERV).
+* **SpacetimeDB SDK / HTTP:** Cliente asíncrono WebSocket y REST.
 
 ---
 
@@ -93,30 +90,41 @@ El sistema utiliza una arquitectura desvinculada (*decoupled*) basada en **Space
 magi-system/
 ├── Cargo.toml                    # Manifest de la raíz del Workspace
 ├── README.md
+├── docker-compose.yml
+├── magi.ps1
 ├── server/                       # Módulo Wasm desplegado DENTRO de SpacetimeDB
 │   ├── Cargo.toml
 │   └── src/
 │       └── lib.rs                # Modelos de tablas, reducers y motor de consenso
 └── client/                       # CLI binario ejecutable
     ├── Cargo.toml
+    ├── skills/                   # Personas desacopladas en Markdown
+    │   └── magi-system/
+    │       ├── melchior.md
+    │       ├── balthasar.md
+    │       └── casper.md
     └── src/
         ├── main.rs               # Entrypoint & CLI Argument Parsing (clap)
-        ├── config.rs             # Carga de API Keys y variables de entorno (.env)
+        ├── config.rs             # Carga dinámica de LLMs y variables (.env)
         ├── core/
         │   ├── mod.rs
-        │   └── orchestrator.rs   # Coordinación de rondas concurrentes y debate
+        │   └── orchestrator.rs   # Coordinación de 2 rondas y debate de pares
         ├── llm/
-        │   ├── mod.rs            # Trait común `LlmProvider`
-        │   ├── melchior.rs       # Persona científica y despacho de proveedor
-        │   ├── balthasar.rs      # Persona de seguridad y Veto
-        │   ├── casper.rs         # Persona pragmática y despacho de proveedor
+        │   ├── mod.rs            # Trait común `LlmProvider` y despachador
+        │   ├── melchior.rs       # Arquetipo científico
+        │   ├── balthasar.rs      # Arquetipo de seguridad y Veto unilateral
+        │   ├── casper.rs         # Arquetipo pragmático y anti-sobreingeniería
         │   └── mock.rs           # Proveedor determinista offline
         ├── db/
         │   ├── mod.rs
-        │   └── client.rs         # Conexión, reducers y suscripciones a SpacetimeDB
+        │   └── client.rs         # Conexión, reducers y sincronización SpacetimeDB
+        ├── skills/
+        │   └── mod.rs            # Cargador dinámico de prompts Markdown
         └── ui/
             ├── mod.rs
-            └── nerv_theme.rs     # Formateador visual NERV para terminal
+            ├── nerv_theme.rs     # Renderizador diegético CRT Phosphor NERV
+            ├── report.rs         # Generador de reportes Markdown persistentes
+            └── tui.rs            # Consola interactiva NERV en Ratatui/Crossterm
 ```
 
 ---
@@ -125,7 +133,7 @@ magi-system/
 
 ### Tabla: `deliberation`
 * **`id`**: `u64` *(Primary Key / Autoinc)* — ID único del debate.
-* **`author`**: `String` *(Indexed)* — Usuario o sistema origen (ej: `"felix@laptop"`).
+* **`author`**: `String` *(Indexed)* — Usuario o sistema origen (ej: `"developer@magi"`).
 * **`title`**: `String` — Título o resumen corto de la consulta.
 * **`prompt`**: `String` — Instrucción o duda técnica del desarrollador.
 * **`context_type`**: `String` — Tipo de adjunto (`"CODE_SNIPPET"`, `"DOCKERFILE"`, `"OPENAPI_SPEC"`, `"NONE"`).
@@ -157,8 +165,6 @@ magi-system/
 
 ## 6. Lógica de Consenso & Veto de Balthasar
 
-El reducer de consenso se ejecuta de manera determinista e inmutable dentro de SpacetimeDB al recibir el tercer voto.
-
 ```text
 ┌────────────────────────────────────────────────────────────────────────┐
 │                     EVALUACIÓN DE VOTOS RECIBIDOS                      │
@@ -178,26 +184,3 @@ El reducer de consenso se ejecuta de manera determinista e inmutable dentro de S
                                - 2 Rejects  -> REJECTED_MAJORITY
                                - 3 Rejects  -> REJECTED_UNANIMOUS
 ```
-
-### Posibles Veredictos Finales:
-1. `VETO_BALTHASAR_SECURITY`: Activado si Balthasar-2 emite `REJECT` con `risk_score >= 8`. Anula cualquier voto a favor de Melchior y Casper.
-2. `APPROVED_UNANIMOUS`: 3-0 a favor. La propuesta cumple con arquitectura, seguridad y pragmatismo.
-3. `APPROVED_MAJORITY`: 2-1 a favor. La propuesta es aprobada con advertencias menores.
-4. `REJECTED_MAJORITY`: 1-2 en contra. Se requiere refactorización.
-5. `REJECTED_UNANIMOUS`: 0-3 en contra. Rechazo total por los 3 nodos.
-
----
-
-## 7. Plan de Implementación Progresivo
-
-1. **Fase 1: Server Module (SpacetimeDB)**
-   * Definición de structs de tablas y reducers en `server/src/lib.rs`.
-   * Implementación del motor `eval_consensus`.
-   * Publicación y despliegue local en la instancia de SpacetimeDB.
-2. **Fase 2: Adapters LLM & Cliente CLI Base**
-   * Configuración de banderas CLI con `clap`.
-  * Implementación del despacho HTTP con `reqwest` y rondas concurrentes cancelables.
-3. **Fase 3: Integración SDK SpacetimeDB & Event Loop**
-   * Conexión WebSocket, llamadas a reducers y suscripción a eventos.
-4. **Fase 4: Terminal UI (NERV Theme)**
-   * Formateador estético para la terminal con reporte de CWEs, tiempos de respuesta y veredicto final.

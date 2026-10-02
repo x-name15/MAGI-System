@@ -1,0 +1,41 @@
+{
+  "report": {
+    "title_prefix": "MAGI Deliberation",
+    "category": "Category",
+    "context_type": "Context Type",
+    "consensus_verdict": "Consensus Verdict",
+    "summary": "Summary",
+    "trinity_header": "The Trinity Votes & Analytical Arguments",
+    "node_prefix": "Node",
+    "vote_prefix": "Vote",
+    "risk_score": "Risk Score",
+    "confidence": "Confidence",
+    "model": "Model",
+    "prompt_version": "Prompt Version",
+    "execution_latency": "Execution Latency",
+    "cwe_flags": "CWE Flags Detected",
+    "structured_findings": "Structured Findings",
+    "table_category": "Category",
+    "table_severity": "Severity",
+    "table_title": "Title",
+    "table_impact": "Impact",
+    "table_recommendation": "Recommendation",
+    "evidence_prefix": "Evidence",
+    "round1_title": "Round 1: Independent Opening Stance",
+    "round1_vote": "Initial Vote",
+    "round1_risk": "Initial Risk",
+    "round2_title": "Round 2: Final Verdict after Peer Debate",
+    "round2_vote": "Final Vote",
+    "round2_risk": "Final Risk",
+    "analysis_title": "Analysis / Rationale",
+    "context_header": "Evaluated Context / Source Code",
+    "saved_msg": "Deliberation and context saved"
+  },
+  "ui": {
+    "consulting_trinity": "MAGI SYSTEM: CONSULTING TRINITY & DEBATING IN PARALLEL...",
+    "round1_eval": "ROUND 1: INDEPENDENT EVALUATION",
+    "round2_debate": "ROUND 2: PEER DEBATE",
+    "consensus_achieved": "RESOLUTION: CONSENSUS ACHIEVED",
+    "synthesis": "SYNTHESIS"
+  }
+}

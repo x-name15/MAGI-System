@@ -1,49 +1,51 @@
-# MAGI System — Roadmap
+# MAGI System — Project Roadmap 
+
+This roadmap defines the engineering milestones for MAGI System, focusing strictly on its identity as a **high-reliability, local-first developer tool for terminal code auditing and architectural consensus**.
+
+---
 
 ## Version Map
 
-* **0.1.3 (Current)** — Lean Docker toolchain, Rust 1.90/SpacetimeDB 1.12 compatibility, and clean workspace validation.
-* **0.1.2** — Real event-driven NERV terminal UI, two-round Trinity debate, mandatory Trinity incident verdicts, and consensus integrity hardening.
-* **0.1.1** — Consensus integrity hardening, concurrency-safe deliberation correlation, fail-closed vote persistence, and prompt-only universal deliberation.
-* **0.1.0** — Core Architecture: SpacetimeDB server module, deterministic consensus engine with Balthasar security veto, asynchronous multi-provider CLI, and NERV terminal theme.
-* **0.2.0** — Extended Provider Ecosystem: Local LLM fallback chains, Google Gemini direct adapter, and streaming argument parsing.
-* **1.0.0** — Production Stabilization: Comprehensive local test harness, benchmarked latency profiling, and persistent audit report export.
+| Version | Status | Focus | Core Deliverables |
+| :--- | :--- | :--- | :--- |
+| **0.1.4** | **Current** | Core Foundation & Hardening | In-memory SpacetimeDB engine, 2-round Trinity debate, i18n localization engine, zero-config provider inference, decoupled Markdown skills, diegetic NERV UI, and Ratatui TUI. |
+| **0.2.0** | **Next** | Streaming & Local-First DX | Diegetic token streaming in CRT monitors, 1-click offline Ollama profiles, and configurable deep deliberation (`--rounds 3`). |
+| **0.3.0** | **Planned** | Codebase Awareness | Git diff auditing (`--diff`, `--staged`), automatic ecosystem detection (`Cargo.toml`/`package.json`), and smart noise filtering. |
+| **1.0.0** | **Target** | Production & Distribution | Standalone precompiled binaries (Windows/Linux/macOS), interactive HTML/JSON compliance reports, and multi-model benchmark suite. |
 
 ---
 
-## 0.1.0 — Core Architecture & Consensus Engine
+## 📦 Milestone Breakdown
 
-**What gets built:**
-- SpacetimeDB module in Rust (`cdylib` / `wasm32-unknown-unknown`) implementing tables `deliberation`, `node_vote`, and `consensus_result`.
-- Reducers `create_deliberation`, `submit_node_vote`, and consensus evaluation with Balthasar's veto.
-- Client CLI in Rust (`clap`) with asynchronous orchestrator (`tokio`, `reqwest`).
-- Provider adapters for Anthropic (`Melchior-1`), OpenAI (`Balthasar-2`), and Ollama (`Casper-3`).
-- NERV aesthetic terminal user interface with spinners and evaluation tables.
-- Docker and WSL containerization harness for turnkey build and testing.
-
-**Done when:**
-Running `magi audit src/auth.rs --prompt "Review authentication handler"` connects to a running SpacetimeDB instance, queries all three LLM personas concurrently, registers the votes, triggers the consensus reducer, and renders the resolved NERV diagnostic summary in the terminal.
+### 🔹 0.1.4 — Core Architecture, i18n & Consensus Engine (Current)
+* [x] **SpacetimeDB WASM Module:** In-memory relational tables (`deliberation`, `node_vote`, `consensus_result`) and atomic reducers.
+* [x] **Two-Round Trinity Protocol:** Round 1 blind evaluation (eliminates anchoring bias) + Round 2 cross-peer debate.
+* [x] **Unilateral Balthasar Security Veto:** Fail-closed security rule (`REJECT` with `risk >= 8`).
+* [x] **Decoupled Persona Modules & Skills:** External Markdown personas in `client/skills/magi-system/` with runtime `--skill` injection.
+* [x] **Universal Provider Engine:** First-class support for Google Gemini, OpenAI, Anthropic, xAI Grok, DeepSeek, Ollama, and offline Mock.
+* [x] **Hybrid Terminal Interface:** Diegetic 24-bit TrueColor NERV CRT monitors + full-screen Ratatui interactive TUI console.
+* [x] **Host-Bound Persistence:** Ephemeral Docker containers with zero host pollution; database persists to `.spacetimedb_data/` and reports to `deliberations/`.
 
 ---
 
-## 0.2.0 — Extended Provider Ecosystem & Fallback
-
-**What gets built:**
-- Google Gemini provider adapter.
-- Automatic failover to local Ollama if remote APIs encounter rate limits or timeouts.
-- Real-time token streaming visualization during node deliberation.
-
-**Done when:**
-Disconnecting external internet access gracefully falls back to local Ollama models without breaking consensus transactions.
+### 🔹 0.2.0 — Streaming & Local-First DX
+* [ ] **Diegetic Token Streaming:** Real-time typewriter phosphor rendering inside NERV monitor boxes as each LLM node streams its tokens over SSE/WebSockets.
+* [ ] **Zero-Config Local Profiles:** Pre-configured one-click templates for 100% offline local execution via Ollama (`qwen2.5-coder`, `deepseek-r1:8b`, `llama3.2`).
+* [ ] **Configurable Deep Deliberation:** Flag `--rounds <N>` (e.g. `--rounds 3` or `--deep`) for multi-stage architectural debriefs on mission-critical proposals.
+* [ ] **Interactive TUI Enhancements:** Live log scrolling and filterable deliberation history search in the Ratatui command deck.
 
 ---
 
-## 1.0.0 — Production Stabilization & Local Audit Reports
+### 🔹 0.3.0 — Codebase Awareness & Smart Ingestion
+* [ ] **Git Diff Auditing:** Native support for `magi audit --diff` or `magi maintain --staged` to evaluate branch deltas or staged changes without manual file copying.
+* [ ] **Automatic Project Context Discovery:** Automatic parsing of root manifests (`Cargo.toml`, `package.json`, `go.mod`, `pyproject.toml`) to contextualize Balthasar and Casper assessments.
+* [ ] **Smart Token & Noise Filtering:** Automated exclusion of lockfiles, minified bundles, and generated code artifacts before context serialization.
+* [ ] **Multi-File Context Aggregation:** Support for auditing related modules concurrently (e.g. `magi maintain src/auth.rs --code src/user.rs`).
 
-**What gets built:**
-- Comprehensive local test harness and integration stress tests.
-- Benchmarked latency profiling across local and remote providers.
-- Local audit report export (`--output-format json|markdown`) to save deliberations to disk.
+---
 
-**Done when:**
-Operators can execute full autonomous audits offline and generate structured reports for local inspection.
+### 🔹 1.0.0 — Production Stabilization & Standalone Distribution
+* [ ] **Standalone Native Binaries:** GitHub Releases with single-binary standalone distributions for Windows (`magi.exe`), Linux (`x86_64`), and macOS (`arm64`/`x86_64`).
+* [ ] **Interactive HTML & JSON Report Export:** Single-file standalone HTML audit reports with visual NERV theme and structured JSON schemas for compliance archiving.
+* [ ] **Multi-Model Consensus Benchmarking Suite:** Built-in benchmarking harness to profile latency, token costs, and consensus divergence across different model combinations.
+* [ ] **Long-Term State Migration:** Automated migration tooling for SpacetimeDB database schemas across major upgrades.
