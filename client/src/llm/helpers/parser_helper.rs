@@ -101,12 +101,21 @@ pub fn parse_llm_json_response(raw_text: &str) -> Result<RawNodeOutput, MagiErro
         }
     }
 
-    Err(MagiError::Provider {
-        node: "JSON_PARSER".to_string(),
-        message: format!(
+    let err_msg = if raw_text.contains("User Safety:") {
+        format!(
+            "Model returned a content safety classification ('{}') instead of structured JSON. This occurs when wildcard routers like 'openrouter/free' route to moderation classifiers (e.g. nvidia/nemotron-3.5-content-safety). Please specify an explicit chat model ID in .env.",
+            raw_text.trim()
+        )
+    } else {
+        format!(
             "Failed to parse LLM structured JSON response. Content: {}",
             raw_text
-        ),
+        )
+    };
+
+    Err(MagiError::Provider {
+        node: "JSON_PARSER".to_string(),
+        message: err_msg,
     })
 }
 
@@ -120,5 +129,17 @@ mod tests {
         let parsed = parse_llm_json_response(input).expect("parse succeeds");
         assert_eq!(parsed.vote, "APPROVE");
         assert_eq!(parsed.risk_score, 2);
+    }
+
+    #[test]
+    fn test_parse_user_safety_classification() {
+        let input = "User Safety: safe";
+        let err = parse_llm_json_response(input).expect_err("should return custom error");
+        match err {
+            MagiError::Provider { message, .. } => {
+                assert!(message.contains("content safety classification"));
+            }
+            _ => panic!("Expected Provider error"),
+        }
     }
 }
