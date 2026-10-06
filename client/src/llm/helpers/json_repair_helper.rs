@@ -12,8 +12,7 @@ pub fn repair_json_text(text: &str) -> String {
         // Check for missing opening quote on a key: e.g. `key":` instead of `"key":`
         if let Some(colon_pos) = trimmed.find("\":") {
             let candidate_key = &trimmed[..colon_pos];
-            let key_only =
-                candidate_key.trim_start_matches(['{', '[', ' ', ',']);
+            let key_only = candidate_key.trim_start_matches(['{', '[', ' ', ',']);
             if !key_only.starts_with('"') && !key_only.is_empty() && !key_only.contains(' ') {
                 let prefix_len = candidate_key.len() - key_only.len();
                 let prefix = &candidate_key[..prefix_len];

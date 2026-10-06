@@ -10,7 +10,10 @@
 
 .EXAMPLE
     .\magi.ps1 status
-    .\magi.ps1 idea docs\IDEA.md
+    .\magi.ps1 diff
+    .\magi.ps1 diff --staged
+    .\magi.ps1 debate "WebSockets vs SSE for real-time notifications"
+    .\magi.ps1 idea docs\rfcs\ROADMAP.md
     .\magi.ps1 maintain client\src\main.rs -g docs\guides\OPERATIONS.md
     .\magi.ps1 triage "panic in connection pool"
     .\magi.ps1 history

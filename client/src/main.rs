@@ -264,6 +264,80 @@ enum Commands {
         id: u64,
     },
 
+    /// Case 4: Audit repository git diff (uncommitted, staged, or against a target branch)
+    Diff {
+        /// Audit only staged changes (`git diff --staged`)
+        #[arg(long)]
+        staged: bool,
+
+        /// Target git reference or branch to compare against (e.g. `origin/main`)
+        #[arg(long, value_name = "REF")]
+        branch: Option<String>,
+
+        /// Optional path to guidelines or rules file (e.g. GUIDELINES.md)
+        #[arg(short, long, value_name = "GUIDELINES_FILE")]
+        guidelines: Option<PathBuf>,
+
+        /// Specific audit instruction or question for the nodes
+        #[arg(
+            short,
+            long,
+            default_value = "Audit these git changes for architectural quality, regressions, security risks, and overengineering."
+        )]
+        prompt: String,
+
+        /// Number of debate rounds (minimum 2: one initial + one final)
+        #[arg(long, default_value_t = 2, value_name = "N")]
+        rounds: u8,
+
+        /// Output format: terminal (default) or json
+        #[arg(long, default_value = "terminal")]
+        output: OutputFormat,
+
+        /// Enable mock mode for testing without requiring external LLM API keys
+        #[arg(long)]
+        mock: bool,
+
+        /// In mock mode, simulate a severe security vulnerability triggering Balthasar's veto
+        #[arg(long)]
+        simulate_veto: bool,
+
+        /// Override request timeout in seconds
+        #[arg(long)]
+        timeout: Option<u64>,
+    },
+
+    /// Case 5: Deliberate a technical dilemma, architectural decision, or technology choice
+    Debate {
+        /// Technical dilemma or question to debate (e.g. "WebSockets vs SSE for real-time notifications")
+        #[arg(value_name = "DILEMMA")]
+        query: String,
+
+        /// Optional path to reference context or RFC document
+        #[arg(short, long, value_name = "CONTEXT_FILE")]
+        context: Option<PathBuf>,
+
+        /// Number of debate rounds (minimum 2: one initial + one final)
+        #[arg(long, default_value_t = 2, value_name = "N")]
+        rounds: u8,
+
+        /// Output format: terminal (default) or json
+        #[arg(long, default_value = "terminal")]
+        output: OutputFormat,
+
+        /// Enable mock mode for testing without requiring external LLM API keys
+        #[arg(long)]
+        mock: bool,
+
+        /// In mock mode, simulate a severe security vulnerability triggering Balthasar's veto
+        #[arg(long)]
+        simulate_veto: bool,
+
+        /// Override request timeout in seconds
+        #[arg(long)]
+        timeout: Option<u64>,
+    },
+
     /// Run as Model Context Protocol (MCP) server over stdio
     Mcp,
 
@@ -958,6 +1032,268 @@ async fn dispatch_command(
 
             Ok(consensus_result.0)
         }
+
+        // =====================================================================
+        // CASE 4: GIT DIFF AUDITING
+        // =====================================================================
+        Commands::Diff {
+            staged,
+            branch,
+            guidelines,
+            prompt,
+            rounds,
+            output,
+            mock,
+            simulate_veto,
+            timeout,
+        } => {
+            if let Some(t) = timeout {
+                config.timeout_seconds = t;
+            }
+            NervTheme::print_banner();
+
+            let diff_text = crate::core::helpers::get_git_diff(staged, branch.as_deref())
+                .map_err(|e| MagiError::Internal(format!("Failed to retrieve git diff: {}", e)))?;
+
+            if diff_text.trim().is_empty() {
+                let msg = if staged {
+                    "No staged git changes detected to audit (use 'git add <files>' first)."
+                } else if let Some(ref b) = branch {
+                    &format!("No git diff detected against reference '{}'.", b)
+                } else {
+                    "No uncommitted git changes detected to audit (working tree is clean)."
+                };
+                match output {
+                    OutputFormat::Json => {
+                        println!(
+                            "{}",
+                            serde_json::json!({
+                                "status": "clean",
+                                "message": msg,
+                                "verdict": "APPROVED"
+                            })
+                        );
+                    }
+                    OutputFormat::Terminal => {
+                        println!("{} {}", "MAGI GIT:".bright_cyan().bold(), msg.green());
+                    }
+                }
+                return Ok("APPROVED".to_string());
+            }
+
+            let title = if staged {
+                "Git Diff (Staged Changes)".to_string()
+            } else if let Some(ref b) = branch {
+                format!("Git Diff (vs {})", b)
+            } else {
+                "Git Diff (Working Tree)".to_string()
+            };
+
+            let guidelines_content = if let Some(ref g) = guidelines {
+                Some(fs::read_to_string(g)?)
+            } else {
+                None
+            };
+
+            let db_client = SpacetimeClient::new(
+                config.spacetimedb_uri.clone(),
+                config.spacetimedb_database.clone(),
+            );
+
+            let deliberation_id = db_client
+                .create_deliberation(
+                    &config.author,
+                    "GIT_DIFF_AUDIT",
+                    &title,
+                    &prompt,
+                    "CODE_DIFF",
+                    &diff_text,
+                    "ALL",
+                )
+                .await?;
+
+            NervTheme::print_deliberation_header(deliberation_id, &title, &config.author);
+
+            let use_mock = mock
+                || (config.melchior.api_key.is_none()
+                    && config.balthasar.api_key.is_none()
+                    && config.casper.api_key.is_none());
+            let orchestrator = MagiOrchestrator::new(config.clone(), use_mock)?
+                .with_custom_skill(custom_skill_content.clone());
+
+            let eval_diff = if simulate_veto {
+                format!(
+                    "{}\n+// EMERGENCY VETO TEST: let secret_api_key = \"sk-admin-secret-unencrypted\";",
+                    diff_text
+                )
+            } else {
+                diff_text.clone()
+            };
+
+            let evaluations = if let Some(ref guide) = guidelines_content {
+                orchestrator
+                    .deliberate_maintenance(&eval_diff, guide, &prompt, rounds)
+                    .await?
+            } else {
+                orchestrator
+                    .deliberate_idea(&prompt, &eval_diff, rounds)
+                    .await?
+            };
+
+            db_client
+                .submit_evaluations(deliberation_id, &evaluations)
+                .await?;
+
+            let consensus_result =
+                resolve_consensus(&db_client, deliberation_id, &evaluations).await;
+
+            match output {
+                OutputFormat::Json => {
+                    let json = ui::JsonOutput::build(
+                        deliberation_id,
+                        &title,
+                        "GIT_DIFF_AUDIT",
+                        "CODE_DIFF",
+                        &consensus_result.0,
+                        &consensus_result.1,
+                        rounds,
+                        &evaluations,
+                    );
+                    json.print();
+                }
+                OutputFormat::Terminal => {
+                    NervTheme::render_votes_table(&evaluations);
+                    NervTheme::render_verdict(&consensus_result.0, &consensus_result.1);
+                }
+            }
+
+            ui::save_host_deliberation_report(
+                deliberation_id,
+                &title,
+                "GIT_DIFF_AUDIT",
+                "CODE_DIFF",
+                &diff_text,
+                &evaluations,
+                &consensus_result.0,
+                &consensus_result.1,
+            );
+
+            Ok(consensus_result.0)
+        }
+
+        // =====================================================================
+        // CASE 5: ARCHITECTURAL DEBATE & DILEMMA
+        // =====================================================================
+        Commands::Debate {
+            query,
+            context,
+            rounds,
+            output,
+            mock,
+            simulate_veto,
+            timeout,
+        } => {
+            if let Some(t) = timeout {
+                config.timeout_seconds = t;
+            }
+            NervTheme::print_banner();
+
+            let context_content = if let Some(ref c) = context {
+                Some(fs::read_to_string(c)?)
+            } else {
+                None
+            };
+
+            let title = format!(
+                "Debate: {}",
+                if query.len() > 60 {
+                    format!("{}...", &query[..57])
+                } else {
+                    query.clone()
+                }
+            );
+
+            let db_client = SpacetimeClient::new(
+                config.spacetimedb_uri.clone(),
+                config.spacetimedb_database.clone(),
+            );
+
+            let context_payload = context_content.as_deref().unwrap_or(&query);
+
+            let deliberation_id = db_client
+                .create_deliberation(
+                    &config.author,
+                    "TECHNICAL_DEBATE",
+                    &title,
+                    &query,
+                    "DILEMMA",
+                    context_payload,
+                    "ALL",
+                )
+                .await?;
+
+            NervTheme::print_deliberation_header(deliberation_id, &title, &config.author);
+
+            let use_mock = mock
+                || (config.melchior.api_key.is_none()
+                    && config.balthasar.api_key.is_none()
+                    && config.casper.api_key.is_none());
+            let orchestrator = MagiOrchestrator::new(config.clone(), use_mock)?
+                .with_custom_skill(custom_skill_content.clone());
+
+            let eval_context = if simulate_veto {
+                format!(
+                    "{}\nNote: Critical security flaw: unrestricted arbitrary remote code execution accepted.",
+                    context_payload
+                )
+            } else {
+                context_payload.to_string()
+            };
+
+            let evaluations = orchestrator
+                .deliberate_debate(&query, Some(&eval_context), rounds)
+                .await?;
+
+            db_client
+                .submit_evaluations(deliberation_id, &evaluations)
+                .await?;
+
+            let consensus_result =
+                resolve_consensus(&db_client, deliberation_id, &evaluations).await;
+
+            match output {
+                OutputFormat::Json => {
+                    let json = ui::JsonOutput::build(
+                        deliberation_id,
+                        &title,
+                        "TECHNICAL_DEBATE",
+                        "DILEMMA",
+                        &consensus_result.0,
+                        &consensus_result.1,
+                        rounds,
+                        &evaluations,
+                    );
+                    json.print();
+                }
+                OutputFormat::Terminal => {
+                    NervTheme::render_votes_table(&evaluations);
+                    NervTheme::render_verdict(&consensus_result.0, &consensus_result.1);
+                }
+            }
+
+            ui::save_host_deliberation_report(
+                deliberation_id,
+                &title,
+                "TECHNICAL_DEBATE",
+                "DILEMMA",
+                context_payload,
+                &evaluations,
+                &consensus_result.0,
+                &consensus_result.1,
+            );
+
+            Ok(consensus_result.0)
+        }
     }
 }
 
@@ -1281,5 +1617,24 @@ mod tests {
         assert_eq!(verdict_to_exit_code("SPLIT"), EXIT_SPLIT);
         assert_eq!(verdict_to_exit_code("NEUTRAL"), EXIT_SPLIT);
         assert_eq!(verdict_to_exit_code("CONSENSUS_UNAVAILABLE"), EXIT_SPLIT);
+    }
+
+    #[test]
+    fn test_cli_diff_subcommand_parse() {
+        let cli = Cli::try_parse_from(["magi", "diff", "--staged"]).expect("parse diff");
+        match cli.command {
+            Some(Commands::Diff { staged, .. }) => assert!(staged),
+            _ => panic!("Expected Commands::Diff"),
+        }
+    }
+
+    #[test]
+    fn test_cli_debate_subcommand_parse() {
+        let cli =
+            Cli::try_parse_from(["magi", "debate", "WebSockets vs SSE"]).expect("parse debate");
+        match cli.command {
+            Some(Commands::Debate { query, .. }) => assert_eq!(query, "WebSockets vs SSE"),
+            _ => panic!("Expected Commands::Debate"),
+        }
     }
 }

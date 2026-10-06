@@ -208,6 +208,65 @@ impl MagiOrchestrator {
         Ok((lead_node.to_string(), evaluation, Some(full_trinity)))
     }
 
+    /// Evaluates a code or architecture snippet solely through Balthasar-2 (The Mother)
+    /// to determine if any critical security vulnerabilities or unilateral veto conditions exist.
+    pub async fn evaluate_security_veto(
+        &self,
+        context: &str,
+        instructions: &str,
+    ) -> Result<NodeEvaluation, MagiError> {
+        let (base_b, _) = self.prompt_loader.load_node_prompt("Balthasar-2");
+        let prompt_b = self
+            .prompt_loader
+            .compose_prompt(&base_b, self.custom_skill.as_deref());
+
+        self.balthasar
+            .evaluate("Balthasar-2", &prompt_b, instructions, context)
+            .await
+    }
+
+    /// Deliberates a technical dilemma, architectural decision, or technology choice across the Trinity.
+    pub async fn deliberate_debate(
+        &self,
+        dilemma: &str,
+        context: Option<&str>,
+        rounds: u8,
+    ) -> Result<Vec<NodeEvaluation>, MagiError> {
+        let (base_m, _) = self.prompt_loader.load_node_prompt("Melchior-1");
+        let (base_b, _) = self.prompt_loader.load_node_prompt("Balthasar-2");
+        let (base_c, _) = self.prompt_loader.load_node_prompt("Casper-3");
+
+        let prompt_m = self
+            .prompt_loader
+            .compose_prompt(&base_m, self.custom_skill.as_deref());
+        let prompt_b = self
+            .prompt_loader
+            .compose_prompt(&base_b, self.custom_skill.as_deref());
+        let prompt_c = self
+            .prompt_loader
+            .compose_prompt(&base_c, self.custom_skill.as_deref());
+
+        let instructions = format!(
+            "TECHNICAL DILEMMA & ARCHITECTURAL CHOICE:\n{}\n\n\
+            Evaluate the trade-offs: Melchior addresses algorithmic/distributed systems architecture; \
+            Balthasar addresses security threat surfaces, permissions, and DOS/failure resilience; \
+            Casper addresses operational pragmatism, cognitive load, DX, and delivery feasibility.",
+            dilemma
+        );
+
+        let context_payload = context.unwrap_or("No additional context provided.");
+
+        self.deliberate_trinity(
+            &prompt_m,
+            &prompt_b,
+            &prompt_c,
+            &instructions,
+            context_payload,
+            rounds,
+        )
+        .await
+    }
+
     /// Helper to classify the nature of an error and select the lead node persona.
     pub fn select_lead_node_for_error(error_text: &str) -> &'static str {
         crate::core::helpers::select_lead_node_for_error(error_text)

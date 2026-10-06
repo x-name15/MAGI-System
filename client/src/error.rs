@@ -24,6 +24,9 @@ pub enum MagiError {
     #[error("SpacetimeDB communication error: {0}")]
     Database(String),
 
+    #[error("Internal error: {0}")]
+    Internal(String),
+
     #[error("Deliberation timeout after {0} seconds")]
     Timeout(u64),
 }

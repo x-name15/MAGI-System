@@ -88,6 +88,8 @@ Direct commands that output diegetic NERV monitors and detailed findings straigh
 
 | Command | Purpose | Example |
 | :--- | :--- | :--- |
+| `diff` | Audits git changes (working tree, staged, or vs branch) | `.\magi.ps1 diff --staged` |
+| `debate` | Debates technical dilemmas and architectural choices | `.\magi.ps1 debate "WebSockets vs SSE"` |
 | `idea` | Audits an RFC or technical proposal for viability | `.\magi.ps1 idea docs\IDEA.md` |
 | `maintain` | Checks code against architecture guidelines | `.\magi.ps1 maintain src\lib.rs --guidelines docs\OPERATIONS.md` |
 | `triage` | Classifies errors, assigns a lead specialist, and debates | `.\magi.ps1 triage logs\panic.log --code src\main.rs` |

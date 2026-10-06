@@ -61,12 +61,50 @@ docker compose run --rm magi triage logs/panic.log --code client/src/main.rs
 
 ---
 
-### Case 4: Free-Form Deliberation (`prompt`)
-Submit any custom query, architecture dilemma, or question directly to the Trinity:
+### Case 4: Git Diff Auditing (`diff`)
+Audits active repository changes (working tree, staged changes, or against a target branch) before committing or opening a pull request.
 
 ```powershell
 # Windows
-.\magi.ps1 prompt "Should we use an embedded in-memory database or a separate daemon for local developer tools?"
+.\magi.ps1 diff
+.\magi.ps1 diff --staged
+.\magi.ps1 diff --branch origin/main
+
+# Linux / Docker
+docker compose run --rm magi diff
+docker compose run --rm magi diff --staged
+docker compose run --rm magi diff --branch origin/main
+```
+
+* **Melchior-1:** Audits logic correctness, regression hazards, and code complexity.
+* **Balthasar-2:** Audits secret leakage, permission regressions, and enforces security veto.
+* **Casper-3:** Audits anti-overengineering, maintainability, and clean diff ergonomics.
+
+---
+
+### Case 5: Architectural Debate & Dilemmas (`debate`)
+Submits a technical dilemma, architectural choice, or technology trade-off to the Trinity:
+
+```powershell
+# Windows
+.\magi.ps1 debate "WebSockets vs Server-Sent Events (SSE) for real-time notifications"
+
+# Linux / Docker
+docker compose run --rm magi debate "WebSockets vs Server-Sent Events (SSE) for real-time notifications"
+```
+
+* **Melchior-1:** Debates theoretical soundness, distributed systems trade-offs, and scalability.
+* **Balthasar-2:** Debates attack surface, firewall/proxy traversal, connection leaks, and DOS resilience.
+* **Casper-3:** Debates implementation simplicity, team DX, maintainability, and operational overhead.
+
+---
+
+### Case 6: Free-Form Deliberation (`prompt`)
+Submit any custom query or question directly to the Trinity:
+
+```powershell
+# Windows
+.\magi.ps1 "Should we use an embedded in-memory database or a separate daemon for local developer tools?"
 
 # Linux / Docker
 docker compose run --rm magi "Should we use an embedded in-memory database or a separate daemon for local developer tools?"

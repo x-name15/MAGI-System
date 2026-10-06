@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.2.1] - 2026-10-06 — Git Diff Auditing, Architectural Dilemma Debates & Expanded MCP Tool Suite
+
+### Added
+- **Git Diff Auditing Subcommand (`magi diff`):** Audits uncommitted working tree changes, `--staged` index deltas, or branch diffs (`--branch origin/main`) directly from git with zero manual file copying required. Deliberates changes across logic regressions, security leaks, and cognitive overhead.
+- **Architectural Dilemma Debate Subcommand (`magi debate`):** Direct CLI command to debate technical decisions, library choices, or architectural trade-offs (e.g. `magi debate "WebSockets vs SSE for real-time notifications"`), returning multi-round cross-examination and synthesized consensus recommendations.
+- **Expanded Model Context Protocol (MCP) Suite (5 Tools):** Upgraded `McpHandler` to register and serve 5 specialized tools over stdio:
+  - `deliberate_with_magi`: General code and proposal deliberation.
+  - `audit_git_changes`: Inspects repository git diff (working tree, staged, or target branch).
+  - `triage_incident_with_magi`: Triages errors/panics with lead specialist routing followed by Trinity debate.
+  - `check_security_veto`: Fast-path defensive security review with Balthasar-2 for CWE detection and veto thresholds.
+  - `debate_technical_dilemma`: Multi-agent trade-off debate on architectural decisions.
+- **Core Helpers & Orchestrator Expansion:**
+  - Added `core::helpers::git_helper` for executing and capturing UTF-8 git diff streams.
+  - Added `MagiOrchestrator::evaluate_security_veto` for single-node defensive checks.
+  - Added `MagiOrchestrator::deliberate_debate` for architectural dilemma evaluation.
+  - Added `MagiError::Internal` variant for clean internal error propagation.
+- **Expanded Test Coverage:** Added unit tests for git diff inspection, CLI argument parsing for `diff` and `debate`, and MCP mock calls for the new tools, bringing the test suite to 36 passing tests (29 client + 7 server) with 0 clippy warnings.
+
+---
+
 ## [0.2.0] - 2026-10-06 — Architectural Helper Decoupling, Pure Local Consensus & Model Context Protocol (MCP) Server
 
 ### Added

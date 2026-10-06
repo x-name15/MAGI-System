@@ -8,16 +8,24 @@ This roadmap defines the engineering milestones for MAGI System, focusing strict
 
 | Version | Status | Focus | Core Deliverables |
 | :--- | :--- | :--- | :--- |
-| **0.2.0** | **Current** | Modular Helpers, Deep Deliberation & MCP Integration | Helper separation (`core/helpers`, `llm/helpers`, `ui/helpers`), Model Context Protocol (`magi mcp` over stdio), pure local consensus engine, `--rounds N` deep debate, semantic exit codes (0/1/2/3), `--output json`, and 100% dynamic i18n localization. |
-| **0.3.0** | **Next** | Streaming & Local-First DX | Diegetic token streaming in CRT monitors, 1-click offline Ollama profiles, and interactive TUI log scrolling. |
-| **0.4.0** | **Planned** | Codebase Awareness | Git diff auditing (`--diff`, `--staged`), automatic ecosystem detection (`Cargo.toml`/`package.json`), and smart noise filtering. |
+| **0.2.1** | **Current** | Git Diff Auditing, Dilemma Debates & Expanded MCP Suite | `magi diff` (working tree, staged, branch), `magi debate` (architectural dilemmas), and 5 specialized MCP tools (`deliberate_with_magi`, `audit_git_changes`, `triage_incident_with_magi`, `check_security_veto`, `debate_technical_dilemma`). |
+| **0.2.0** | **Completed** | Modular Helpers, Deep Deliberation & MCP Integration | Helper separation (`core/helpers`, `llm/helpers`, `ui/helpers`), Model Context Protocol (`magi mcp` over stdio), pure local consensus engine, `--rounds N` deep debate, semantic exit codes (0/1/2/3), `--output json`, and 100% dynamic i18n localization. |
+| **0.3.0** | **Next** | Local-First DX & Ecosystem Awareness | 1-click offline Ollama profiles, interactive TUI log scrolling, and automatic ecosystem detection (`Cargo.toml`/`package.json`). |
 | **1.0.0** | **Target** | Production & Distribution | Standalone precompiled binaries (Windows/Linux/macOS), interactive HTML/JSON compliance reports, and multi-model benchmark suite. |
 
 ---
 
 ## 📦 Milestone Breakdown
 
-### 🔹 0.2.0 — Modular Helpers, Deep Deliberation & MCP Server (Current)
+### 🔹 0.2.1 — Git Diff Auditing, Dilemma Debates & Expanded MCP Suite (Current)
+* [x] **Git Diff Auditing (`magi diff`):** Audits uncommitted working tree changes, `--staged` index deltas, or branch comparisons without manual file copying.
+* [x] **Architectural Dilemma Debates (`magi debate`):** Multi-agent trade-off debates on technology dilemmas and architectural decisions.
+* [x] **Expanded MCP Tool Suite (5 Tools):** Exposed `audit_git_changes`, `triage_incident_with_magi`, `check_security_veto`, and `debate_technical_dilemma` alongside `deliberate_with_magi`.
+* [x] **Security Veto Direct Evaluator:** Fast-path defensive analysis with Balthasar-2 for CWE detection and veto thresholds.
+
+---
+
+### 🔹 0.2.0 — Modular Helpers, Deep Deliberation & MCP Server (Completed)
 * [x] **Model Context Protocol (MCP) Server:** Native `magi mcp` implementation over stdio exposing `deliberate_with_magi` for autonomous agent integration (Antigravity, Claude Desktop).
 * [x] **Pure Local Consensus Engine:** Offline-capable consensus and security veto resolver with zero mandatory database dependencies.
 * [x] **Deep Deliberation Rounds (`--rounds N`):** Configurable multi-round debate depth across all workflows with iterative peer exposure.
