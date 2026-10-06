@@ -5,6 +5,7 @@ use thiserror::Error;
 /// Central error type for all client and orchestrator operations.
 #[derive(Error, Debug)]
 pub enum MagiError {
+    #[allow(dead_code)]
     #[error("Configuration error: {0}")]
     Config(String),
 

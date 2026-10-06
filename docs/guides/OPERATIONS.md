@@ -18,14 +18,12 @@ Version `0.1.4` is fully containerized and verified inside the Docker toolchain:
 
 ## 2. Architecture & Persistence Model
 
-MAGI utilizes an **ephemeral container lifecycle with host-bound persistence**:
-
-* **Database Persistence:** SpacetimeDB table state and consensus histories are bound to `./.spacetimedb_data:/stdb`. Containers can be stopped, killed, or recreated without data loss.
-* **Audit Report Persistence:** Every deliberation automatically writes a human-readable Markdown summary to `./deliberations/deliberation_XXXXXX_<slug>.md`.
+* **Database Persistence:** SpacetimeDB table state and consensus histories are persisted in a dedicated Docker named volume (`spacetimedb_data:/stdb`) running under `user: root`. Containers can be stopped, restarted, or recreated without data loss or host permission issues.
+* **Audit Report Persistence:** Every deliberation automatically writes a human-readable Markdown summary to host storage at `./deliberations/deliberation_XXXXXX_<slug>.md`.
+* **Zero Host Pollution:** Rust compilation target caches (`cargo_target:/workspace/target`) and package dependencies (`cargo_cache`, `cargo_git`) reside in dedicated Docker volumes, preventing multi-gigabyte build artifacts from cluttering the host.
 * **Resource Quotas:**
-  * `magi-spacetimedb`: `mem_limit: 512m` (reserva `128m`), `cpus: 1.0`
-  * `magi` client container: `mem_limit: 2g` (reserva `512m`), `cpus: 2.0`
-* **Cargo Caches:** Crates and git dependencies are cached in Docker named volumes (`cargo_cache`, `cargo_git`) to keep the host directory clean.
+  * `magi-spacetimedb`: `mem_limit: 512m` (reservation `128m`), `cpus: 1.0`
+  * `magi` client container: `mem_limit: 2g` (reservation `512m`), `cpus: 2.0`
 
 ---
 

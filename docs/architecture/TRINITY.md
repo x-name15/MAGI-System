@@ -87,7 +87,7 @@ Payload / Proposal
 
 ---
 
-## 🌐 Dynamic Language Adaptation (i18n)
+## Dynamic Language Adaptation (i18n)
 
 MAGI automatically adapts its entire terminal telemetry, monitor badges, debate prompts, and Markdown reports based on the prompt's language or explicit `MAGI_LANG` override:
 * **Automatic Detection:** Evaluates prompt tokens and context to select English or Spanish dynamically.

@@ -9,7 +9,9 @@ services:
       - "3000:3000"
     command: ["start", "--listen-addr", "0.0.0.0:3000", "--data-dir=/stdb/data"]
     volumes:
-      - ./.spacetimedb_data:/stdb
+      - spacetimedb_data:/stdb
+      - cargo_target:/target:ro
+    user: root
     restart: unless-stopped
 
   magi:
@@ -24,6 +26,7 @@ services:
       - spacetimedb
     volumes:
       - .:/workspace
+      - cargo_target:/workspace/target
       - cargo_cache:/usr/local/cargo/registry
       - cargo_git:/usr/local/cargo/git
     env_file:
@@ -49,6 +52,7 @@ services:
       - spacetimedb
     volumes:
       - .:/workspace
+      - cargo_target:/workspace/target
       - cargo_cache:/usr/local/cargo/registry
       - cargo_git:/usr/local/cargo/git
     env_file:
@@ -61,5 +65,7 @@ services:
     tty: true
 
 volumes:
+  spacetimedb_data:
+  cargo_target:
   cargo_cache:
   cargo_git:

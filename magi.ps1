@@ -11,7 +11,7 @@
 .EXAMPLE
     .\magi.ps1 status
     .\magi.ps1 idea docs\IDEA.md
-    .\magi.ps1 maintain client\src\main.rs -g client\skills\magi-system\SKILL.md
+    .\magi.ps1 maintain client\src\main.rs -g docs\guides\OPERATIONS.md
     .\magi.ps1 triage "panic in connection pool"
     .\magi.ps1 history
     .\magi.ps1 console
@@ -25,6 +25,11 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+
+# Always ensure working directory is the script root where docker-compose.yml resides
+if ($PSScriptRoot) {
+    Set-Location $PSScriptRoot
+}
 
 function Write-NervBanner {
     Write-Host "NERV // MAGI SYSTEM DOCKER ORCHESTRATOR" -ForegroundColor DarkYellow
@@ -75,8 +80,12 @@ switch ($firstArg) {
     }
 
     "build" {
-        Write-Host "▶ Building MAGI workspace inside container..." -ForegroundColor Cyan
-        docker compose run --rm magi cargo build --workspace
+        Ensure-SpacetimeDB
+        Write-Host "▶ Building MAGI client and server WASM inside container..." -ForegroundColor Cyan
+        docker compose run --rm magi cargo build --bin magi
+        docker compose run --rm magi cargo build -p magi-server --target wasm32-unknown-unknown
+        Write-Host "▶ Publishing magi-server module to SpacetimeDB..." -ForegroundColor Cyan
+        docker compose exec spacetimedb spacetime publish -y --server http://127.0.0.1:3000 --bin-path /target/wasm32-unknown-unknown/debug/magi_server.wasm magi-system
         exit $LASTEXITCODE
     }
 
@@ -101,6 +110,11 @@ switch ($firstArg) {
     "sh" {
         Ensure-SpacetimeDB
         docker compose run --rm magi sh
+        exit $LASTEXITCODE
+    }
+
+    "mcp" {
+        docker compose run -i -T --rm magi mcp
         exit $LASTEXITCODE
     }
 

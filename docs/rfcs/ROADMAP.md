@@ -8,35 +8,34 @@ This roadmap defines the engineering milestones for MAGI System, focusing strict
 
 | Version | Status | Focus | Core Deliverables |
 | :--- | :--- | :--- | :--- |
-| **0.1.4** | **Current** | Core Foundation & Hardening | In-memory SpacetimeDB engine, 2-round Trinity debate, i18n localization engine, zero-config provider inference, decoupled Markdown skills, diegetic NERV UI, and Ratatui TUI. |
-| **0.2.0** | **Next** | Streaming & Local-First DX | Diegetic token streaming in CRT monitors, 1-click offline Ollama profiles, and configurable deep deliberation (`--rounds 3`). |
-| **0.3.0** | **Planned** | Codebase Awareness | Git diff auditing (`--diff`, `--staged`), automatic ecosystem detection (`Cargo.toml`/`package.json`), and smart noise filtering. |
+| **0.2.0** | **Current** | Modular Helpers, Deep Deliberation & MCP Integration | Helper separation (`core/helpers`, `llm/helpers`, `ui/helpers`), Model Context Protocol (`magi mcp` over stdio), pure local consensus engine, `--rounds N` deep debate, semantic exit codes (0/1/2/3), `--output json`, and 100% dynamic i18n localization. |
+| **0.3.0** | **Next** | Streaming & Local-First DX | Diegetic token streaming in CRT monitors, 1-click offline Ollama profiles, and interactive TUI log scrolling. |
+| **0.4.0** | **Planned** | Codebase Awareness | Git diff auditing (`--diff`, `--staged`), automatic ecosystem detection (`Cargo.toml`/`package.json`), and smart noise filtering. |
 | **1.0.0** | **Target** | Production & Distribution | Standalone precompiled binaries (Windows/Linux/macOS), interactive HTML/JSON compliance reports, and multi-model benchmark suite. |
 
 ---
 
 ## 📦 Milestone Breakdown
 
-### 🔹 0.1.4 — Core Architecture, i18n & Consensus Engine (Current)
-* [x] **SpacetimeDB WASM Module:** In-memory relational tables (`deliberation`, `node_vote`, `consensus_result`) and atomic reducers.
-* [x] **Two-Round Trinity Protocol:** Round 1 blind evaluation (eliminates anchoring bias) + Round 2 cross-peer debate.
-* [x] **Unilateral Balthasar Security Veto:** Fail-closed security rule (`REJECT` with `risk >= 8`).
-* [x] **Decoupled Persona Modules & Skills:** External Markdown personas in `client/skills/magi-system/` with runtime `--skill` injection.
-* [x] **Universal Provider Engine:** First-class support for Google Gemini, OpenAI, Anthropic, xAI Grok, DeepSeek, Ollama, and offline Mock.
-* [x] **Hybrid Terminal Interface:** Diegetic 24-bit TrueColor NERV CRT monitors + full-screen Ratatui interactive TUI console.
-* [x] **Host-Bound Persistence:** Ephemeral Docker containers with zero host pollution; database persists to `.spacetimedb_data/` and reports to `deliberations/`.
+### 🔹 0.2.0 — Modular Helpers, Deep Deliberation & MCP Server (Current)
+* [x] **Model Context Protocol (MCP) Server:** Native `magi mcp` implementation over stdio exposing `deliberate_with_magi` for autonomous agent integration (Antigravity, Claude Desktop).
+* [x] **Pure Local Consensus Engine:** Offline-capable consensus and security veto resolver with zero mandatory database dependencies.
+* [x] **Deep Deliberation Rounds (`--rounds N`):** Configurable multi-round debate depth across all workflows with iterative peer exposure.
+* [x] **Semantic Process Exit Codes:** Semantic exit codes (`0` for APPROVED, `1` for REJECTED/VETO, `2` for SPLIT, `3` for ERROR) for automated CI/CD gating.
+* [x] **Machine-Readable JSON Output (`--output json`):** Structured JSON serialization envelope for programmatic consumption.
+* [x] **Architectural Helper Decoupling:** Dedicated `helpers/` submodules across `core`, `llm`, and `ui`.
+* [x] **Complete i18n String Externalization:** Zero hardcoded prompt strings or branching; 100% catalog-driven telemetry and prompts.
 
 ---
 
-### 🔹 0.2.0 — Streaming & Local-First DX
+### 🔹 0.3.0 — Streaming & Local-First DX
 * [ ] **Diegetic Token Streaming:** Real-time typewriter phosphor rendering inside NERV monitor boxes as each LLM node streams its tokens over SSE/WebSockets.
 * [ ] **Zero-Config Local Profiles:** Pre-configured one-click templates for 100% offline local execution via Ollama (`qwen2.5-coder`, `deepseek-r1:8b`, `llama3.2`).
-* [ ] **Configurable Deep Deliberation:** Flag `--rounds <N>` (e.g. `--rounds 3` or `--deep`) for multi-stage architectural debriefs on mission-critical proposals.
 * [ ] **Interactive TUI Enhancements:** Live log scrolling and filterable deliberation history search in the Ratatui command deck.
 
 ---
 
-### 🔹 0.3.0 — Codebase Awareness & Smart Ingestion
+### 🔹 0.4.0 — Codebase Awareness & Smart Ingestion
 * [ ] **Git Diff Auditing:** Native support for `magi audit --diff` or `magi maintain --staged` to evaluate branch deltas or staged changes without manual file copying.
 * [ ] **Automatic Project Context Discovery:** Automatic parsing of root manifests (`Cargo.toml`, `package.json`, `go.mod`, `pyproject.toml`) to contextualize Balthasar and Casper assessments.
 * [ ] **Smart Token & Noise Filtering:** Automated exclusion of lockfiles, minified bundles, and generated code artifacts before context serialization.

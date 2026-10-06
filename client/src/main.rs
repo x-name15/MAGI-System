@@ -14,10 +14,11 @@ mod db;
 mod error;
 mod i18n;
 mod llm;
+mod mcp;
 mod skills;
 mod ui;
 
-use clap::{Parser, Subcommand};
+use clap::{Parser, Subcommand, ValueEnum};
 use colored::*;
 use config::MagiConfig;
 use core::MagiOrchestrator;
@@ -28,6 +29,26 @@ use std::fs;
 use std::path::PathBuf;
 use std::time::Duration;
 use ui::NervTheme;
+
+// ── Semantic exit codes ───────────────────────────────────────────────────────
+/// Process exits with this code when the Trinity reaches an APPROVED verdict.
+const EXIT_APPROVED: i32 = 0;
+/// Process exits with this code when the Trinity reaches a REJECTED verdict.
+const EXIT_REJECTED: i32 = 1;
+/// Process exits with this code when the Trinity is split (NEUTRAL / no majority).
+const EXIT_SPLIT: i32 = 2;
+/// Process exits with this code on any runtime or configuration error.
+const EXIT_ERROR: i32 = 3;
+
+/// Output format selection for deliberation results.
+#[derive(ValueEnum, Debug, Clone, Default)]
+pub enum OutputFormat {
+    /// Human-readable NERV terminal output (default).
+    #[default]
+    Terminal,
+    /// Machine-readable JSON printed to stdout (suitable for piping / CI).
+    Json,
+}
 
 /// CLI argument parser for MAGI System.
 #[derive(Parser, Debug)]
@@ -44,6 +65,10 @@ struct Cli {
     /// Optional path to custom skill or instructions file injected into the Trinity
     #[arg(long, global = true)]
     skill: Option<PathBuf>,
+
+    /// Override system language ('en' or 'es')
+    #[arg(long, global = true, value_name = "LANG")]
+    lang: Option<String>,
 
     /// Natural language prompt or file path when no subcommand is specified
     #[arg(trailing_var_arg = true)]
@@ -70,6 +95,14 @@ enum Commands {
         )]
         prompt: String,
 
+        /// Number of debate rounds (minimum 2: one initial + one final)
+        #[arg(long, default_value_t = 2, value_name = "N")]
+        rounds: u8,
+
+        /// Output format: terminal (default) or json
+        #[arg(long, default_value = "terminal")]
+        output: OutputFormat,
+
         /// Enable mock mode for testing without requiring external LLM API keys
         #[arg(long)]
         mock: bool,
@@ -89,7 +122,7 @@ enum Commands {
         #[arg(value_name = "CODE_FILE")]
         path: PathBuf,
 
-        /// Path to the guidelines document or rules file (e.g. SKILL.md, GUIDELINES.md)
+        /// Path to the guidelines document or rules file (e.g. GUIDELINES.md, RULES.md)
         #[arg(short, long, value_name = "GUIDELINES_FILE")]
         guidelines: PathBuf,
 
@@ -100,6 +133,14 @@ enum Commands {
             default_value = "Evaluate how to maintain and evolve this code under these guidelines."
         )]
         prompt: String,
+
+        /// Number of debate rounds (minimum 2: one initial + one final)
+        #[arg(long, default_value_t = 2, value_name = "N")]
+        rounds: u8,
+
+        /// Output format: terminal (default) or json
+        #[arg(long, default_value = "terminal")]
+        output: OutputFormat,
 
         /// Enable mock mode for testing without requiring external LLM API keys
         #[arg(long)]
@@ -123,6 +164,14 @@ enum Commands {
         /// Optional path to the relevant source code file
         #[arg(short, long, value_name = "CODE_FILE")]
         code: Option<PathBuf>,
+
+        /// Number of debate rounds for the Trinity verdict phase (minimum 2)
+        #[arg(long, default_value_t = 2, value_name = "N")]
+        rounds: u8,
+
+        /// Output format: terminal (default) or json
+        #[arg(long, default_value = "terminal")]
+        output: OutputFormat,
 
         /// Enable mock mode for testing without requiring external LLM API keys
         #[arg(long)]
@@ -155,6 +204,14 @@ enum Commands {
         /// Context type classification (e.g. CODE_SNIPPET, DOCKERFILE, SPEC)
         #[arg(short = 'c', long, default_value = "CODE_SNIPPET")]
         context_type: String,
+
+        /// Number of debate rounds (minimum 2: one initial + one final)
+        #[arg(long, default_value_t = 2, value_name = "N")]
+        rounds: u8,
+
+        /// Output format: terminal (default) or json
+        #[arg(long, default_value = "terminal")]
+        output: OutputFormat,
 
         /// Enable mock mode for testing without requiring external LLM API keys
         #[arg(long)]
@@ -207,37 +264,60 @@ enum Commands {
         id: u64,
     },
 
+    /// Run as Model Context Protocol (MCP) server over stdio
+    Mcp,
+
     /// Verify connectivity to the SpacetimeDB engine
     Status,
 }
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+async fn main() {
     env_logger::init();
+    let exit_code = run().await;
+    std::process::exit(exit_code);
+}
+
+async fn run() -> i32 {
     let cli = Cli::parse();
-    let mut config = MagiConfig::from_env()?;
+
+    if let Some(ref l) = cli.lang {
+        std::env::set_var("MAGI_LANG", l);
+    }
+
+    let mut config = match MagiConfig::from_env() {
+        Ok(c) => c,
+        Err(e) => {
+            eprintln!("{} {}", "MAGI CONFIG ERROR:".bright_red().bold(), e);
+            return EXIT_ERROR;
+        }
+    };
+
     let is_mock = cli.mock
         || (config.melchior.api_key.is_none()
             && config.balthasar.api_key.is_none()
             && config.casper.api_key.is_none());
 
     let custom_skill_content = if let Some(ref skill_path) = cli.skill {
-        let content = PromptLoader::load_custom_skill(skill_path).map_err(|e| {
-            MagiError::Io(std::io::Error::new(
-                std::io::ErrorKind::NotFound,
-                format!(
-                    "Failed to load custom skill from '{}': {}",
+        match PromptLoader::load_custom_skill(skill_path) {
+            Ok(content) => {
+                println!(
+                    "{} Injected custom skill from [{}]",
+                    "MAGI SKILL:".bright_magenta().bold(),
+                    skill_path.display()
+                );
+                Some(content)
+            }
+            Err(e) => {
+                eprintln!(
+                    "{} Failed to load custom skill from '{}': {}",
+                    "MAGI ERROR:".bright_red().bold(),
                     skill_path.display(),
                     e
-                ),
-            ))
-        })?;
-        println!(
-            "{} Injected custom skill from [{}]",
-            "MAGI SKILL:".bright_magenta().bold(),
-            skill_path.display()
-        );
-        Some(content)
+                );
+                return EXIT_ERROR;
+            }
+        }
     } else {
         None
     };
@@ -246,7 +326,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         Some(cmd) => cmd,
         None => {
             if cli.query.is_empty() {
-                return ui::run_interactive_session(config, is_mock, custom_skill_content).await;
+                return match ui::run_interactive_session(config, is_mock, custom_skill_content)
+                    .await
+                {
+                    Ok(()) => EXIT_APPROVED,
+                    Err(e) => {
+                        eprintln!("{} {}", "MAGI ERROR:".bright_red().bold(), e);
+                        EXIT_ERROR
+                    }
+                };
             } else {
                 let query_str = cli.query.join(" ");
                 let intent = ui::intent::process_user_intent(&query_str);
@@ -256,9 +344,33 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     };
 
+    match dispatch_command(command, &mut config, is_mock, custom_skill_content).await {
+        Ok(verdict) => verdict_to_exit_code(&verdict),
+        Err(e) => {
+            eprintln!("{} {}", "MAGI ERROR:".bright_red().bold(), e);
+            EXIT_ERROR
+        }
+    }
+}
+
+// ── Command dispatcher ────────────────────────────────────────────────────────
+
+/// Dispatches a parsed command and returns the consensus verdict string.
+async fn dispatch_command(
+    command: Commands,
+    config: &mut MagiConfig,
+    is_mock: bool,
+    custom_skill_content: Option<String>,
+) -> Result<String, Box<dyn std::error::Error>> {
     match command {
         Commands::Interactive => {
-            ui::run_interactive_session(config, is_mock, custom_skill_content).await?;
+            ui::run_interactive_session(config.clone(), is_mock, custom_skill_content).await?;
+            Ok("APPROVED".to_string())
+        }
+
+        Commands::Mcp => {
+            crate::mcp::run_stdio_server(config.clone(), custom_skill_content, is_mock).await?;
+            Ok("APPROVED".to_string())
         }
 
         Commands::Status => {
@@ -273,6 +385,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 Ok(false) => println!("SpacetimeDB responded but database is not yet initialized."),
                 Err(e) => eprintln!("SpacetimeDB connection error: {}", e),
             }
+            Ok("APPROVED".to_string())
         }
 
         Commands::History { limit } => {
@@ -291,6 +404,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
                 Err(e) => eprintln!("Error fetching history: {}", e),
             }
+            Ok("APPROVED".to_string())
         }
 
         Commands::Show { id } => {
@@ -310,11 +424,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     }
                     if let Some(c) = consensus {
                         NervTheme::render_verdict(&c.verdict, &c.summary);
+                        return Ok(c.verdict);
                     }
                 }
                 Ok(None) => println!("Deliberation #{} not found in SpacetimeDB.", id),
                 Err(e) => eprintln!("Error fetching deliberation details: {}", e),
             }
+            Ok("NEUTRAL".to_string())
         }
 
         // =====================================================================
@@ -323,6 +439,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         Commands::Idea {
             path,
             prompt,
+            rounds,
+            output,
             mock,
             simulate_veto,
             timeout,
@@ -330,7 +448,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             if let Some(t) = timeout {
                 config.timeout_seconds = t;
             }
-
             NervTheme::print_banner();
             let markdown_content = fs::read_to_string(&path).map_err(|e| {
                 MagiError::Io(std::io::Error::new(
@@ -364,29 +481,52 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             NervTheme::print_deliberation_header(deliberation_id, &title, &config.author);
 
-            let is_mock = mock
+            let use_mock = mock
                 || (config.melchior.api_key.is_none()
                     && config.balthasar.api_key.is_none()
                     && config.casper.api_key.is_none());
-            let orchestrator = MagiOrchestrator::new(config.clone(), is_mock)?
+            let orchestrator = MagiOrchestrator::new(config.clone(), use_mock)?
                 .with_custom_skill(custom_skill_content.clone());
 
             let eval_content = if simulate_veto {
-                format!("{}\n## Security Warning\nHigh risk data leak and hardcoded credentials detected.", markdown_content)
+                format!(
+                    "{}\n## Security Warning\nHigh risk data leak and hardcoded credentials detected.",
+                    markdown_content
+                )
             } else {
                 markdown_content
             };
 
-            let evaluations = orchestrator.deliberate_idea(&prompt, &eval_content).await?;
+            let evaluations = orchestrator
+                .deliberate_idea(&prompt, &eval_content, rounds)
+                .await?;
 
             db_client
                 .submit_evaluations(deliberation_id, &evaluations)
                 .await?;
 
-            NervTheme::render_votes_table(&evaluations);
             let consensus_result =
                 resolve_consensus(&db_client, deliberation_id, &evaluations).await;
-            NervTheme::render_verdict(&consensus_result.0, &consensus_result.1);
+
+            match output {
+                OutputFormat::Json => {
+                    let json = ui::JsonOutput::build(
+                        deliberation_id,
+                        &title,
+                        "IDEA_PROPOSAL",
+                        "MARKDOWN",
+                        &consensus_result.0,
+                        &consensus_result.1,
+                        rounds,
+                        &evaluations,
+                    );
+                    json.print();
+                }
+                OutputFormat::Terminal => {
+                    NervTheme::render_votes_table(&evaluations);
+                    NervTheme::render_verdict(&consensus_result.0, &consensus_result.1);
+                }
+            }
 
             ui::save_host_deliberation_report(
                 deliberation_id,
@@ -398,6 +538,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 &consensus_result.0,
                 &consensus_result.1,
             );
+
+            Ok(consensus_result.0)
         }
 
         // =====================================================================
@@ -407,6 +549,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             path,
             guidelines,
             prompt,
+            rounds,
+            output,
             mock,
             simulate_veto,
             timeout,
@@ -414,7 +558,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             if let Some(t) = timeout {
                 config.timeout_seconds = t;
             }
-
             NervTheme::print_banner();
             let code_content = fs::read_to_string(&path)?;
             let guidelines_content = fs::read_to_string(&guidelines)?;
@@ -447,11 +590,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             NervTheme::print_deliberation_header(deliberation_id, &title, &config.author);
 
-            let is_mock = mock
+            let use_mock = mock
                 || (config.melchior.api_key.is_none()
                     && config.balthasar.api_key.is_none()
                     && config.casper.api_key.is_none());
-            let orchestrator = MagiOrchestrator::new(config.clone(), is_mock)?
+            let orchestrator = MagiOrchestrator::new(config.clone(), use_mock)?
                 .with_custom_skill(custom_skill_content.clone());
 
             let eval_content = if simulate_veto {
@@ -464,17 +607,35 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             };
 
             let evaluations = orchestrator
-                .deliberate_maintenance(&eval_content, &guidelines_content, &prompt)
+                .deliberate_maintenance(&eval_content, &guidelines_content, &prompt, rounds)
                 .await?;
 
             db_client
                 .submit_evaluations(deliberation_id, &evaluations)
                 .await?;
 
-            NervTheme::render_votes_table(&evaluations);
             let consensus_result =
                 resolve_consensus(&db_client, deliberation_id, &evaluations).await;
-            NervTheme::render_verdict(&consensus_result.0, &consensus_result.1);
+
+            match output {
+                OutputFormat::Json => {
+                    let json = ui::JsonOutput::build(
+                        deliberation_id,
+                        &title,
+                        "CODE_MAINTENANCE",
+                        "SOURCE_CODE",
+                        &consensus_result.0,
+                        &consensus_result.1,
+                        rounds,
+                        &evaluations,
+                    );
+                    json.print();
+                }
+                OutputFormat::Terminal => {
+                    NervTheme::render_votes_table(&evaluations);
+                    NervTheme::render_verdict(&consensus_result.0, &consensus_result.1);
+                }
+            }
 
             let combined_context = format!(
                 "CODE:\n{}\n\nGUIDELINES:\n{}",
@@ -490,6 +651,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 &consensus_result.0,
                 &consensus_result.1,
             );
+
+            Ok(consensus_result.0)
         }
 
         // =====================================================================
@@ -498,13 +661,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         Commands::Triage {
             error,
             code,
+            rounds,
+            output,
             mock,
             timeout,
         } => {
             if let Some(t) = timeout {
                 config.timeout_seconds = t;
             }
-
             NervTheme::print_banner();
             let error_text = if std::path::Path::new(&error).exists() {
                 fs::read_to_string(&error)?
@@ -542,15 +706,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 )
                 .await?;
 
-            let is_mock = mock
+            let use_mock = mock
                 || (config.melchior.api_key.is_none()
                     && config.balthasar.api_key.is_none()
                     && config.casper.api_key.is_none());
-            let orchestrator = MagiOrchestrator::new(config.clone(), is_mock)?
+            let orchestrator = MagiOrchestrator::new(config.clone(), use_mock)?
                 .with_custom_skill(custom_skill_content.clone());
 
             let (lead, eval, escalation) = orchestrator
-                .triage_error(&error_text, code_content.as_deref())
+                .triage_error(&error_text, code_content.as_deref(), rounds)
                 .await?;
 
             db_client
@@ -564,7 +728,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     eval.execution_time_ms,
                 )
                 .await?;
-            NervTheme::render_triage_result(&lead, &eval);
 
             if let Some(trinity_evals) = escalation {
                 println!(
@@ -574,10 +737,30 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 db_client
                     .submit_evaluations(deliberation_id, &trinity_evals)
                     .await?;
-                NervTheme::render_votes_table(&trinity_evals);
+
                 let consensus =
                     resolve_consensus(&db_client, deliberation_id, &trinity_evals).await;
-                NervTheme::render_verdict(&consensus.0, &consensus.1);
+
+                match output {
+                    OutputFormat::Json => {
+                        let json = ui::JsonOutput::build(
+                            deliberation_id,
+                            "Error Incident Triage",
+                            "ERROR_TRIAGE",
+                            "ERROR_LOG",
+                            &consensus.0,
+                            &consensus.1,
+                            rounds,
+                            &trinity_evals,
+                        );
+                        json.print();
+                    }
+                    OutputFormat::Terminal => {
+                        NervTheme::render_triage_result(&lead, &eval);
+                        NervTheme::render_votes_table(&trinity_evals);
+                        NervTheme::render_verdict(&consensus.0, &consensus.1);
+                    }
+                }
 
                 ui::save_host_deliberation_report(
                     deliberation_id,
@@ -589,6 +772,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     &consensus.0,
                     &consensus.1,
                 );
+
+                Ok(consensus.0)
             } else {
                 db_client
                     .submit_vote(
@@ -601,8 +786,29 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         eval.execution_time_ms,
                     )
                     .await?;
+
                 let v = eval.vote.clone();
                 let s = eval.argument.clone();
+
+                match output {
+                    OutputFormat::Json => {
+                        let json = ui::JsonOutput::build(
+                            deliberation_id,
+                            "Incident Triage",
+                            "ERROR_TRIAGE",
+                            "ERROR_LOG",
+                            &v,
+                            &s,
+                            rounds,
+                            std::slice::from_ref(&eval),
+                        );
+                        json.print();
+                    }
+                    OutputFormat::Terminal => {
+                        NervTheme::render_triage_result(&lead, &eval);
+                    }
+                }
+
                 ui::save_host_deliberation_report(
                     deliberation_id,
                     "Incident Triage",
@@ -613,6 +819,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     &v,
                     &s,
                 );
+
+                Ok(v)
             }
         }
 
@@ -624,6 +832,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             prompt,
             title,
             context_type,
+            rounds,
+            output,
             mock,
             simulate_veto,
             timeout,
@@ -687,11 +897,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .await?;
 
             NervTheme::print_deliberation_header(deliberation_id, &file_title, &config.author);
-            let is_mock = mock
+
+            let use_mock = mock
                 || (config.melchior.api_key.is_none()
                     && config.balthasar.api_key.is_none()
                     && config.casper.api_key.is_none());
-            let orchestrator = MagiOrchestrator::new(config.clone(), is_mock)?
+            let orchestrator = MagiOrchestrator::new(config.clone(), use_mock)?
                 .with_custom_skill(custom_skill_content.clone());
 
             let eval_content = if simulate_veto {
@@ -703,16 +914,36 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 file_content
             };
 
-            let evaluations = orchestrator.deliberate_idea(&prompt, &eval_content).await?;
+            let evaluations = orchestrator
+                .deliberate_idea(&prompt, &eval_content, rounds)
+                .await?;
 
             db_client
                 .submit_evaluations(deliberation_id, &evaluations)
                 .await?;
 
-            NervTheme::render_votes_table(&evaluations);
             let consensus_result =
                 resolve_consensus(&db_client, deliberation_id, &evaluations).await;
-            NervTheme::render_verdict(&consensus_result.0, &consensus_result.1);
+
+            match output {
+                OutputFormat::Json => {
+                    let json = ui::JsonOutput::build(
+                        deliberation_id,
+                        &file_title,
+                        "UNIVERSAL_AUDIT",
+                        &context_type,
+                        &consensus_result.0,
+                        &consensus_result.1,
+                        rounds,
+                        &evaluations,
+                    );
+                    json.print();
+                }
+                OutputFormat::Terminal => {
+                    NervTheme::render_votes_table(&evaluations);
+                    NervTheme::render_verdict(&consensus_result.0, &consensus_result.1);
+                }
+            }
 
             ui::save_host_deliberation_report(
                 deliberation_id,
@@ -724,10 +955,21 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 &consensus_result.0,
                 &consensus_result.1,
             );
+
+            Ok(consensus_result.0)
         }
     }
+}
 
-    Ok(())
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+/// Maps a consensus verdict string to a semantic exit code.
+fn verdict_to_exit_code(verdict: &str) -> i32 {
+    match verdict.to_uppercase().as_str() {
+        "APPROVED" | "APPROVE" => EXIT_APPROVED,
+        "REJECTED" | "REJECT" => EXIT_REJECTED,
+        _ => EXIT_SPLIT,
+    }
 }
 
 async fn resolve_consensus(
@@ -752,7 +994,22 @@ async fn execute_inferred_intent(
     config: MagiConfig,
     is_mock: bool,
     custom_skill: Option<String>,
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> i32 {
+    match execute_inferred_intent_inner(intent, config, is_mock, custom_skill).await {
+        Ok(verdict) => verdict_to_exit_code(&verdict),
+        Err(e) => {
+            eprintln!("{} {}", "MAGI ERROR:".bright_red().bold(), e);
+            EXIT_ERROR
+        }
+    }
+}
+
+async fn execute_inferred_intent_inner(
+    intent: ui::intent::InferredIntent,
+    config: MagiConfig,
+    is_mock: bool,
+    custom_skill: Option<String>,
+) -> Result<String, Box<dyn std::error::Error>> {
     let db_client = SpacetimeClient::new(
         config.spacetimedb_uri.clone(),
         config.spacetimedb_database.clone(),
@@ -771,14 +1028,17 @@ async fn execute_inferred_intent(
                     }
                     Err(e) => eprintln!("SpacetimeDB connection error: {}", e),
                 }
+                Ok("APPROVED".to_string())
             }
             "history" => {
                 NervTheme::print_banner();
                 let records = db_client.list_history(20).await?;
                 NervTheme::render_history(&records);
+                Ok("APPROVED".to_string())
             }
             _ => {
                 println!("MAGI Operational Console. Type 'magi' for interactive session.");
+                Ok("APPROVED".to_string())
             }
         },
 
@@ -803,7 +1063,7 @@ async fn execute_inferred_intent(
                 .await?;
 
             NervTheme::print_deliberation_header(id, &title, &config.author);
-            let evals = orchestrator.deliberate_idea(&question, &content).await?;
+            let evals = orchestrator.deliberate_idea(&question, &content, 2).await?;
 
             db_client.submit_evaluations(id, &evals).await?;
 
@@ -821,6 +1081,7 @@ async fn execute_inferred_intent(
                 &verdict,
                 &summary,
             );
+            Ok(verdict)
         }
 
         ui::intent::InferredIntent::CodeMaintenance {
@@ -857,7 +1118,7 @@ async fn execute_inferred_intent(
 
             NervTheme::print_deliberation_header(id, &title, &config.author);
             let evals = orchestrator
-                .deliberate_maintenance(&code_content, &guidelines_content, &instructions)
+                .deliberate_maintenance(&code_content, &guidelines_content, &instructions, 2)
                 .await?;
 
             db_client.submit_evaluations(id, &evals).await?;
@@ -880,6 +1141,7 @@ async fn execute_inferred_intent(
                 &verdict,
                 &summary,
             );
+            Ok(verdict)
         }
 
         ui::intent::InferredIntent::ErrorTriage {
@@ -909,7 +1171,7 @@ async fn execute_inferred_intent(
                 .await?;
 
             let (lead, eval, escalation) = orchestrator
-                .triage_error(&error_text, code_content.as_deref())
+                .triage_error(&error_text, code_content.as_deref(), 2)
                 .await?;
 
             NervTheme::render_triage_result(&lead, &eval);
@@ -931,6 +1193,7 @@ async fn execute_inferred_intent(
                     &verdict,
                     &summary,
                 );
+                Ok(verdict)
             } else {
                 db_client
                     .submit_vote(
@@ -955,6 +1218,7 @@ async fn execute_inferred_intent(
                     &v,
                     &s,
                 );
+                Ok(v)
             }
         }
 
@@ -978,7 +1242,7 @@ async fn execute_inferred_intent(
 
             NervTheme::print_deliberation_header(id, "Deliberation Session", &config.author);
             let evals = orchestrator
-                .deliberate_idea(&prompt, &context_payload)
+                .deliberate_idea(&prompt, &context_payload, 2)
                 .await?;
 
             db_client.submit_evaluations(id, &evals).await?;
@@ -997,8 +1261,25 @@ async fn execute_inferred_intent(
                 &verdict,
                 &summary,
             );
+            Ok(verdict)
         }
     }
+}
 
-    Ok(())
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_verdict_to_exit_code() {
+        assert_eq!(verdict_to_exit_code("APPROVED"), EXIT_APPROVED);
+        assert_eq!(verdict_to_exit_code("APPROVE"), EXIT_APPROVED);
+        assert_eq!(verdict_to_exit_code("approved"), EXIT_APPROVED);
+        assert_eq!(verdict_to_exit_code("REJECTED"), EXIT_REJECTED);
+        assert_eq!(verdict_to_exit_code("REJECT"), EXIT_REJECTED);
+        assert_eq!(verdict_to_exit_code("rejected"), EXIT_REJECTED);
+        assert_eq!(verdict_to_exit_code("SPLIT"), EXIT_SPLIT);
+        assert_eq!(verdict_to_exit_code("NEUTRAL"), EXIT_SPLIT);
+        assert_eq!(verdict_to_exit_code("CONSENSUS_UNAVAILABLE"), EXIT_SPLIT);
+    }
 }

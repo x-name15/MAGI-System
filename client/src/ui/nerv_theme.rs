@@ -111,23 +111,7 @@ impl NervTheme {
 
     /// Calculates the terminal display width of a string considering full-width CJK characters.
     fn str_display_width(s: &str) -> usize {
-        s.chars()
-            .map(|c| {
-                if ('\u{1100}'..='\u{115F}').contains(&c)
-                    || ('\u{2E80}'..='\u{A4CF}').contains(&c)
-                    || ('\u{AC00}'..='\u{D7A3}').contains(&c)
-                    || ('\u{F900}'..='\u{FAFF}').contains(&c)
-                    || ('\u{FE10}'..='\u{FE19}').contains(&c)
-                    || ('\u{FE30}'..='\u{FE6F}').contains(&c)
-                    || ('\u{FF00}'..='\u{FF60}').contains(&c)
-                    || ('\u{FFE0}'..='\u{FFE6}').contains(&c)
-                {
-                    2
-                } else {
-                    1
-                }
-            })
-            .sum()
+        crate::ui::helpers::str_display_width(s)
     }
 
     /// Formats a single MAGI node into lines for a 25-column diegetic CRT monitor box with bloom and Round 1 override support.
@@ -137,232 +121,12 @@ impl NervTheme {
         bloom: bool,
         is_r1: bool,
     ) -> Vec<String> {
-        let (name, role) = match eval.node_id.as_str() {
-            "Melchior-1" => ("MELCHIOR-1", "SCIENTIST · ARCH"),
-            "Balthasar-2" => ("BALTHASAR-2", "MOTHER · SECURITY"),
-            "Casper-3" => ("CASPER-3", "WOMAN · PRAGMATICS"),
-            _ => ("MAGI-AUX", "AUXILIARY EVALUATOR"),
-        };
-
-        let (active_vote, active_risk) = if is_r1 && eval.initial_vote.is_some() {
-            (
-                eval.initial_vote.as_deref().unwrap_or("APPROVE"),
-                eval.initial_risk_score.unwrap_or(eval.risk_score),
-            )
-        } else {
-            (eval.vote.as_str(), eval.risk_score)
-        };
-
-        let node_veto = is_veto
-            || (eval.node_id == "Balthasar-2"
-                && active_vote == "REJECT"
-                && (active_risk >= 8 || !eval.cwe_flags.is_empty()));
-
-        // Luminous CRT phosphor palette
-        let (r, g, b) = match (node_veto, active_vote, bloom) {
-            (true, _, true) => (255, 90, 90),
-            (true, _, false) => (255, 30, 30),
-            (false, "APPROVE", true) => (140, 255, 140),
-            (false, "APPROVE", false) => (80, 255, 80),
-            (false, "REJECT", true) => (255, 110, 110),
-            (false, "REJECT", false) => (255, 60, 60),
-            (_, _, true) => (255, 230, 140),
-            (_, _, false) => (200, 200, 200),
-        };
-
-        let border_h = "─".repeat(23);
-        // Interconnected wireframe borders: Balthasar connects down; Casper/Melchior connect up
-        let line_top = if eval.node_id == "Balthasar-2" {
-            format!("┌{}┐", border_h).truecolor(r, g, b).to_string()
-        } else {
-            "┌───────────┴───────────┐".truecolor(r, g, b).to_string()
-        };
-
-        let line_mid = match eval.node_id.as_str() {
-            "Casper-3" => format!("├{}┼", border_h).truecolor(r, g, b).to_string(),
-            "Melchior-1" => format!("┼{}┤", border_h).truecolor(r, g, b).to_string(),
-            _ => format!("├{}┤", border_h).truecolor(r, g, b).to_string(),
-        };
-
-        let line_bot = if eval.node_id == "Balthasar-2" {
-            "└───────────┬───────────┘".truecolor(r, g, b).to_string()
-        } else {
-            format!("└{}┘", border_h).truecolor(r, g, b).to_string()
-        };
-
-        let l_border = "│".truecolor(r, g, b).to_string();
-        let r_border = "│".truecolor(r, g, b).to_string();
-
-        // Row 1: Node Header (23 cols)
-        let header_str = format!("{:^23}", name)
-            .truecolor(r, g, b)
-            .bold()
-            .to_string();
-        let row1 = format!("{}{}{}", l_border, header_str, r_border);
-
-        // Row 2: Archetype (23 cols)
-        let role_str = format!("{:^23}", role).truecolor(180, 180, 180).to_string();
-        let row2 = format!("{}{}{}", l_border, role_str, r_border);
-
-        // Row 3: Risk gauge (exact 23 chars)
-        let clamped_risk = active_risk.min(10) as usize;
-        let filled = "█".repeat(clamped_risk);
-        let empty = "░".repeat(10 - clamped_risk);
-        let gauge = format!("{}{}", filled, empty);
-        let (gr, gg, gb) = if active_risk >= 8 {
-            (255, 60, 60)
-        } else if active_risk >= 5 {
-            (255, 200, 40)
-        } else {
-            (80, 220, 100)
-        };
-        let gauge_colored = gauge.truecolor(gr, gg, gb).to_string();
-        let risk_label = format!("RISK [{}] {:>2}/10", gauge_colored, active_risk);
-        let row3 = format!("{}{}{}", l_border, risk_label, r_border);
-
-        // Row 4: Telemetry (exact 23 chars)
-        let conf_pct = (eval.confidence * 100.0).round() as u32;
-        let round_tag = if is_r1 { "R1" } else { "R2" };
-        let tele_raw = format!(
-            "{}: {:>3}%  LAT:{:>5}ms",
-            round_tag,
-            conf_pct,
-            eval.execution_time_ms.min(99999)
-        );
-        let tele_str = format!("{:^23}", tele_raw)
-            .truecolor(150, 150, 150)
-            .to_string();
-        let row4 = format!("{}{}{}", l_border, tele_str, r_border);
-
-        // Row 5 & 6: Vote Badge & Subtitle (exact 23 chars)
-        let (vote_badge, subtitle) = if node_veto {
-            (
-                "  ██ SECURITY VETO ██  "
-                    .truecolor(
-                        255,
-                        if bloom { 90 } else { 30 },
-                        if bloom { 90 } else { 30 },
-                    )
-                    .bold()
-                    .to_string(),
-                "    [ SECURITY VETO ]  ".truecolor(255, 60, 60).to_string(),
-            )
-        } else {
-            match active_vote {
-                "APPROVE" => (
-                    "    ██ AGREEMENT ██    "
-                        .truecolor(
-                            if bloom { 180 } else { 80 },
-                            255,
-                            if bloom { 180 } else { 80 },
-                        )
-                        .bold()
-                        .to_string(),
-                    "     [  AGREEMENT  ]   "
-                        .truecolor(100, 220, 100)
-                        .to_string(),
-                ),
-                "REJECT" => (
-                    "     ██ DENIAL ██      "
-                        .truecolor(
-                            255,
-                            if bloom { 110 } else { 60 },
-                            if bloom { 110 } else { 60 },
-                        )
-                        .bold()
-                        .to_string(),
-                    "     [    DENIAL   ]   ".truecolor(220, 80, 80).to_string(),
-                ),
-                _ => (
-                    "    ◇◇  NEUTRAL  ◇◇    "
-                        .truecolor(255, 200, 60)
-                        .bold()
-                        .to_string(),
-                    "     [   RESERVED  ]   "
-                        .truecolor(200, 180, 80)
-                        .to_string(),
-                ),
-            }
-        };
-        let row5 = format!("{}{}{}", l_border, vote_badge, r_border);
-        let row6 = format!("{}{}{}", l_border, subtitle, r_border);
-
-        vec![
-            line_top, row1, row2, row3, row4, line_mid, row5, row6, line_bot,
-        ]
+        crate::ui::helpers::format_node_monitor(eval, is_veto, bloom, is_r1)
     }
 
     /// Formats a single MAGI node in a CRT strobe / blackout state (inter-frame scanline blackout).
     fn format_blackout_monitor(eval: &NodeEvaluation) -> Vec<String> {
-        let name = match eval.node_id.as_str() {
-            "Melchior-1" => "MELCHIOR-1",
-            "Balthasar-2" => "BALTHASAR-2",
-            "Casper-3" => "CASPER-3",
-            _ => "MAGI-AUX",
-        };
-
-        let (dim_r, dim_g, dim_b) = (50, 42, 30);
-        let border_h = "─".repeat(23);
-        let line_top = if eval.node_id == "Balthasar-2" {
-            format!("┌{}┐", border_h)
-                .truecolor(dim_r, dim_g, dim_b)
-                .to_string()
-        } else {
-            "┌───────────┴───────────┐"
-                .truecolor(dim_r, dim_g, dim_b)
-                .to_string()
-        };
-
-        let line_mid = match eval.node_id.as_str() {
-            "Casper-3" => format!("├{}┼", border_h)
-                .truecolor(dim_r, dim_g, dim_b)
-                .to_string(),
-            "Melchior-1" => format!("┼{}┤", border_h)
-                .truecolor(dim_r, dim_g, dim_b)
-                .to_string(),
-            _ => format!("├{}┤", border_h)
-                .truecolor(dim_r, dim_g, dim_b)
-                .to_string(),
-        };
-
-        let line_bot = if eval.node_id == "Balthasar-2" {
-            "└───────────┬───────────┘"
-                .truecolor(dim_r, dim_g, dim_b)
-                .to_string()
-        } else {
-            format!("└{}┘", border_h)
-                .truecolor(dim_r, dim_g, dim_b)
-                .to_string()
-        };
-
-        let l_border = "│".truecolor(dim_r, dim_g, dim_b).to_string();
-        let r_border = "│".truecolor(dim_r, dim_g, dim_b).to_string();
-
-        let row1 = format!("{}{:^23}{}", l_border, name.truecolor(75, 60, 42), r_border);
-        let row2 = format!(
-            "{}{:^23}{}",
-            l_border,
-            "· · · · · · ·".truecolor(40, 35, 28),
-            r_border
-        );
-        let row3 = format!("{}{:^23}{}", l_border, "                     ", r_border);
-        let row4 = format!(
-            "{}{:^23}{}",
-            l_border,
-            " · CATHODE STROBE ·  ".truecolor(65, 55, 40),
-            r_border
-        );
-        let row5 = format!("{}{:^23}{}", l_border, "                     ", r_border);
-        let row6 = format!(
-            "{}{:^23}{}",
-            l_border,
-            "· · · · · · ·".truecolor(40, 35, 28),
-            r_border
-        );
-
-        vec![
-            line_top, row1, row2, row3, row4, line_mid, row5, row6, line_bot,
-        ]
+        crate::ui::helpers::format_blackout_monitor(eval)
     }
 
     /// Formats a single MAGI node into lines while in the active deliberating / Electric Cyan scanning state.
@@ -371,85 +135,7 @@ impl NervTheme {
         sim_risk: usize,
         blink: bool,
     ) -> Vec<String> {
-        let (name, role) = match eval.node_id.as_str() {
-            "Melchior-1" => ("MELCHIOR-1", "SCIENTIST · ARCH"),
-            "Balthasar-2" => ("BALTHASAR-2", "MOTHER · SECURITY"),
-            "Casper-3" => ("CASPER-3", "WOMAN · PRAGMATICS"),
-            _ => ("MAGI-AUX", "AUXILIARY EVALUATOR"),
-        };
-
-        // Electric Cyan CRT Phosphor directly inspired by the Evangelion sprite sheets
-        let (r, g, b) = if blink { (0, 225, 255) } else { (0, 130, 180) };
-
-        let border_h = "─".repeat(23);
-        let line_top = if eval.node_id == "Balthasar-2" {
-            format!("┌{}┐", border_h).truecolor(r, g, b).to_string()
-        } else {
-            "┌───────────┴───────────┐".truecolor(r, g, b).to_string()
-        };
-
-        let line_mid = match eval.node_id.as_str() {
-            "Casper-3" => format!("├{}┼", border_h).truecolor(r, g, b).to_string(),
-            "Melchior-1" => format!("┼{}┤", border_h).truecolor(r, g, b).to_string(),
-            _ => format!("├{}┤", border_h).truecolor(r, g, b).to_string(),
-        };
-
-        let line_bot = if eval.node_id == "Balthasar-2" {
-            "└───────────┬───────────┘".truecolor(r, g, b).to_string()
-        } else {
-            format!("└{}┘", border_h).truecolor(r, g, b).to_string()
-        };
-
-        let l_border = "│".truecolor(r, g, b).to_string();
-        let r_border = "│".truecolor(r, g, b).to_string();
-
-        let row1 = format!(
-            "{}{:^23}{}",
-            l_border,
-            name.truecolor(r, g, b).bold(),
-            r_border
-        );
-        let row2 = format!(
-            "{}{:^23}{}",
-            l_border,
-            role.truecolor(0, 170, 210),
-            r_border
-        );
-
-        // Fluctuating risk gauge (exact 23 chars)
-        let filled = "█".repeat(sim_risk.min(10));
-        let empty = "░".repeat(10 - sim_risk.min(10));
-        let gauge = format!("{}{}", filled, empty)
-            .truecolor(r, g, b)
-            .to_string();
-        let risk_label = format!("RISK [{}]  --/10", gauge);
-        let row3 = format!("{}{}{}", l_border, risk_label, r_border);
-
-        // Scanning telemetry (exact 23 chars)
-        let tele_raw = format!("SCANNING... {:>5}ms", eval.execution_time_ms.min(99999));
-        let tele_str = format!("{:^23}", tele_raw)
-            .truecolor(0, 150, 190)
-            .to_string();
-        let row4 = format!("{}{}{}", l_border, tele_str, r_border);
-
-        // Deliberation blinking badge (exact 23 chars)
-        let badge_text = if blink {
-            "  ██ DELIBERATING ██   "
-                .truecolor(0, 240, 255)
-                .bold()
-                .to_string()
-        } else {
-            "  ▒▒ DELIBERATING ▒▒   ".truecolor(0, 160, 200).to_string()
-        };
-        let sub_text = "   [ SYNCHRONIZING ]   "
-            .truecolor(100, 200, 230)
-            .to_string();
-        let row5 = format!("{}{}{}", l_border, badge_text, r_border);
-        let row6 = format!("{}{}{}", l_border, sub_text, r_border);
-
-        vec![
-            line_top, row1, row2, row3, row4, line_mid, row5, row6, line_bot,
-        ]
+        crate::ui::helpers::format_deliberating_monitor(eval, sim_risk, blink)
     }
 
     /// Renders a 22-line Evangelion triangular MAGI layout with Balthasar-2 on top,
@@ -462,48 +148,27 @@ impl NervTheme {
         lines_m: &[String],
         connector_color: (u8, u8, u8),
     ) {
-        // Line 0: Header
-        println!("\x1b[2K{}", header);
-
-        // Lines 1..9: Balthasar-2 (top center, padded with 21 spaces -> center is col 33)
-        let pad_b = " ".repeat(21);
-        for line in lines_b {
-            println!("\x1b[2K{}{}", pad_b, line);
-        }
-
-        // Lines 10..12: Connector lines without central box or arrows (3 lines)
-        let (cr, cg, cb) = connector_color;
-        let c_wire = |s: &str| s.truecolor(cr, cg, cb).to_string();
-
-        let conn_0 = format!("{}│", " ".repeat(33));
-        let conn_1 = format!("{}┌────────────────┴────────────────┐", " ".repeat(16));
-        let conn_2 = format!("{}│{}│", " ".repeat(16), " ".repeat(33));
-
-        println!("\x1b[2K{}", c_wire(&conn_0));
-        println!("\x1b[2K{}", c_wire(&conn_1));
-        println!("\x1b[2K{}", c_wire(&conn_2));
-
-        // Lines 13..21: Casper-3 (left) and Melchior-1 (right) with horizontal connection bridge
-        let pad_left = " ".repeat(4);
-        let bridge_wire = "─".repeat(9).truecolor(cr, cg, cb).to_string();
-        let pad_gap = " ".repeat(9);
-
-        for i in 0..lines_c.len() {
-            // Line mid (index 5) connects Casper and Melchior directly with a horizontal line
-            let gap_str = if i == 5 { &bridge_wire } else { &pad_gap };
-
-            println!("\x1b[2K{}{}{}{}", pad_left, lines_c[i], gap_str, lines_m[i]);
-        }
+        crate::ui::helpers::render_triangular_screen(
+            header,
+            lines_b,
+            lines_c,
+            lines_m,
+            connector_color,
+        )
     }
 
     /// Displays the three node evaluations as iconic Evangelion triangular CRT monitors
     /// animating through Round 1, inter-node cross debate, Round 2 resolution, and consensus.
     pub fn render_votes_table(evaluations: &[NodeEvaluation]) {
-        Self::section("MAGI TRINITY MONITORS / INDIVIDUAL EVALUATIONS");
-
-        let is_es = evaluations
+        let combined_text = evaluations
             .iter()
-            .any(|e| crate::llm::is_spanish_text(&e.argument));
+            .map(|e| e.argument.as_str())
+            .collect::<Vec<_>>()
+            .join(" ");
+        let lang = crate::i18n::Language::detect(&combined_text);
+        let bundle = crate::i18n::get_bundle(lang);
+
+        Self::section(&bundle.ui.monitors_section);
 
         let m = evaluations.iter().find(|e| e.node_id == "Melchior-1");
         let b = evaluations.iter().find(|e| e.node_id == "Balthasar-2");
@@ -712,83 +377,39 @@ impl NervTheme {
                 let lines_b = render_node(*st_b, ev_b, is_veto_b);
                 let lines_c = render_node(*st_c, ev_c, is_veto_c);
 
-                let header_line = match (*phase, is_es) {
-                    (0, true) => format!(
+                let header_line = match *phase {
+                    0 => format!(
                         "  {}  {}",
-                        "⟳ 質問 · CONSULTA: SINCRONIZANDO NODOS"
-                            .truecolor(255, 174, 66)
-                            .bold(),
-                        "解決 · RESOLUCIÓN: INICIANDO EVALUACIÓN...".truecolor(160, 130, 80)
+                        bundle.ui.phase_0_inquiry.truecolor(255, 174, 66).bold(),
+                        bundle.ui.phase_0_resolution.truecolor(160, 130, 80)
                     ),
-                    (0, false) => format!(
+                    1 => format!(
                         "  {}  {}",
-                        "⟳ 質問 · INQUIRY: SYNCHRONIZING NODES"
-                            .truecolor(255, 174, 66)
-                            .bold(),
-                        "解決 · RESOLUTION: INITIALIZING EVALUATION...".truecolor(160, 130, 80)
+                        bundle.ui.phase_1_inquiry.truecolor(255, 195, 45).bold(),
+                        bundle.ui.phase_1_resolution.truecolor(180, 150, 90)
                     ),
-                    (1, true) => format!(
+                    2 => format!(
                         "  {}  {}",
-                        "↳ 質問 · RONDA 1: EVALUACIÓN INDEPENDIENTE"
-                            .truecolor(255, 195, 45)
-                            .bold(),
-                        "解決 · RESOLUCIÓN: PENDIENTE DE DEBATE...".truecolor(180, 150, 90)
+                        bundle.ui.phase_2_inquiry.truecolor(255, 230, 80).bold(),
+                        bundle.ui.phase_2_resolution.truecolor(220, 180, 90)
                     ),
-                    (1, false) => format!(
+                    3 => format!(
                         "  {}  {}",
-                        "↳ 質問 · ROUND 1: INDEPENDENT VOTES LOCKED"
-                            .truecolor(255, 195, 45)
-                            .bold(),
-                        "解決 · RESOLUTION: CROSS-DEBATE PENDING...".truecolor(180, 150, 90)
+                        bundle.ui.phase_3_inquiry.truecolor(255, 195, 45).bold(),
+                        bundle.ui.phase_3_resolution.truecolor(220, 190, 100)
                     ),
-                    (2, true) => format!(
-                        "  {}  {}",
-                        "↳ 質問 · RONDA 2: DEBATE CRUZADO INTER-NODOS"
-                            .truecolor(255, 230, 80)
-                            .bold(),
-                        "解決 · RESOLUCIÓN: EVALUANDO CONTRAPOSICIONES...".truecolor(220, 180, 90)
-                    ),
-                    (2, false) => format!(
-                        "  {}  {}",
-                        "↳ 質問 · ROUND 2: PEER CROSS-DEBATE ACTIVE"
-                            .truecolor(255, 230, 80)
-                            .bold(),
-                        "解決 · RESOLUTION: EVALUATING COUNTERARGUMENTS...".truecolor(220, 180, 90)
-                    ),
-                    (3, true) => format!(
-                        "  {}  {}",
-                        "↳ 質問 · RONDA 2: POSICIONES FINALES SELLADAS"
-                            .truecolor(255, 195, 45)
-                            .bold(),
-                        "解決 · RESOLUCIÓN: FORMALIZANDO CONSENSO...".truecolor(220, 190, 100)
-                    ),
-                    (3, false) => format!(
-                        "  {}  {}",
-                        "↳ 質問 · ROUND 2: FINAL POSITIONS SEALED"
-                            .truecolor(255, 195, 45)
-                            .bold(),
-                        "解決 · RESOLUTION: FORMALIZING CONSENSUS...".truecolor(220, 190, 100)
-                    ),
-                    (_, true) => {
+                    _ => {
                         let (res_r, res_g, res_b) = consensus_bus;
                         format!(
                             "  {}  {}",
-                            "✓ 質問 · TRINIDAD: EVALUACIÓN COMPLETA"
+                            bundle
+                                .ui
+                                .phase_complete_inquiry
                                 .truecolor(255, 174, 66)
                                 .bold(),
-                            "解決 · RESOLUCIÓN: CONSENSO ALCANZADO"
-                                .truecolor(res_r, res_g, res_b)
-                                .bold()
-                        )
-                    }
-                    (_, false) => {
-                        let (res_r, res_g, res_b) = consensus_bus;
-                        format!(
-                            "  {}  {}",
-                            "✓ 質問 · TRINITY: EVALUATION COMPLETE"
-                                .truecolor(255, 174, 66)
-                                .bold(),
-                            "解決 · RESOLUTION: CONSENSUS ACHIEVED"
+                            bundle
+                                .ui
+                                .phase_complete_resolution
                                 .truecolor(res_r, res_g, res_b)
                                 .bold()
                         )
@@ -821,12 +442,10 @@ impl NervTheme {
         }
 
         // Detailed Node Diagnostic & Rationale Breakdown
-        let rationales_title = if is_es {
-            "▌ POSTURAS DE DEBATE Y HALLAZGOS ESPECIALIZADOS"
-        } else {
-            "▌ POST-DEBATE RATIONALES & SPECIALIST FINDINGS"
-        };
-        println!("{}", rationales_title.truecolor(255, 174, 66).bold());
+        println!(
+            "{}",
+            bundle.ui.rationales_title.truecolor(255, 174, 66).bold()
+        );
         println!(
             "{}",
             "──────────────────────────────────────────────────────────────────────────────"
@@ -849,31 +468,21 @@ impl NervTheme {
             if let (Some(ref init_vote), Some(init_risk)) =
                 (&eval.initial_vote, eval.initial_risk_score)
             {
-                let traj_label = if is_es {
-                    format!("• TRAYECTORIA DE VOTO: R1: {} (Riesgo: {}/10)  ➔  R2 Final: {} (Riesgo: {}/10)", init_vote.bold(), init_risk, eval.vote.bold(), eval.risk_score)
-                } else {
-                    format!(
-                        "• VOTING TRAJECTORY: R1: {} (Risk: {}/10)  ➔  R2 Final: {} (Risk: {}/10)",
-                        init_vote.bold(),
-                        init_risk,
-                        eval.vote.bold(),
-                        eval.risk_score
-                    )
-                };
+                let traj_label = bundle.ui.format_trajectory(
+                    &init_vote.bold().to_string(),
+                    init_risk,
+                    &eval.vote.bold().to_string(),
+                    eval.risk_score,
+                );
                 println!("  {}", traj_label.truecolor(255, 174, 66));
                 let _ = std::io::stdout().flush();
                 std::thread::sleep(std::time::Duration::from_millis(80));
             }
 
             if !eval.cwe_flags.is_empty() {
-                let cwe_label = if is_es {
-                    "CWE DETECTADOS:"
-                } else {
-                    "CWE DETECTED:"
-                };
                 println!(
                     "  {} {}",
-                    cwe_label.truecolor(255, 174, 66).bold(),
+                    bundle.ui.cwe_detected.truecolor(255, 174, 66).bold(),
                     eval.cwe_flags.join(" · ").magenta()
                 );
                 let _ = std::io::stdout().flush();
@@ -900,12 +509,14 @@ impl NervTheme {
             }
 
             if let Some(ref init_arg) = eval.initial_argument {
-                let r1_label = if is_es {
-                    "• [RONDA 1: EVALUACIÓN INICIAL]:"
-                } else {
-                    "• [ROUND 1: INITIAL POSITION]:"
-                };
-                println!("  {}", r1_label.truecolor(240, 200, 80).bold());
+                println!(
+                    "  {}",
+                    bundle
+                        .ui
+                        .round1_initial_position
+                        .truecolor(240, 200, 80)
+                        .bold()
+                );
                 println!("    {}", init_arg.white());
                 let _ = std::io::stdout().flush();
                 std::thread::sleep(std::time::Duration::from_millis(180));
@@ -915,12 +526,14 @@ impl NervTheme {
                 } else {
                     &eval.argument
                 };
-                let r2_label = if is_es {
-                    "• [RONDA 2: CONCLUSIÓN TRAS DEBATE]:"
-                } else {
-                    "• [ROUND 2: POST-DEBATE RESOLUTION]:"
-                };
-                println!("  {}", r2_label.truecolor(80, 230, 240).bold());
+                println!(
+                    "  {}",
+                    bundle
+                        .ui
+                        .round2_post_debate_resolution
+                        .truecolor(80, 230, 240)
+                        .bold()
+                );
                 println!("    {}", final_stance.white());
                 let _ = std::io::stdout().flush();
                 std::thread::sleep(std::time::Duration::from_millis(220));
@@ -940,125 +553,72 @@ impl NervTheme {
 
     /// Displays the persisted consensus verdict and its summary without redundant text duplication.
     pub fn render_verdict(verdict: &str, summary: &str) {
-        let is_es = crate::llm::is_spanish_text(summary);
+        let lang = crate::i18n::Language::detect(summary);
+        let bundle = crate::i18n::get_bundle(lang);
 
         println!();
         Self::rule();
-        Self::section("NERV CENTRAL DOGMA // TRINITY CONSENSUS");
+        Self::section(&bundle.ui.central_dogma_section);
         let _ = std::io::stdout().flush();
         std::thread::sleep(std::time::Duration::from_millis(200));
 
         let (banner_title, detail, r, g, b) = match verdict {
-            "CONSENSUS_UNAVAILABLE" => {
-                if is_es {
-                    (
-                        "CONSENSUS UNAVAILABLE // 通信途絶",
-                        "Sin veredicto persistido en SpacetimeDB. No se usó fallback local.",
-                        255,
-                        60,
-                        60,
-                    )
-                } else {
-                    (
-                        "CONSENSUS UNAVAILABLE // 通信途絶",
-                        "No persisted verdict returned by SpacetimeDB. No local fallback was used.",
-                        255,
-                        60,
-                        60,
-                    )
-                }
-            }
-            "VETO_BALTHASAR_SECURITY" => {
-                if is_es {
-                    ("⚠ EMERGENCY SECURITY VETO // 第2使徒絶対防衛発令 ⚠", "Veto de seguridad activado. Umbral de riesgo crítico alcanzado en nodo defensivo.", 255, 30, 30)
-                } else {
-                    ("⚠ EMERGENCY SECURITY VETO // 第2使徒絶対防衛発令 ⚠", "Security veto activated. Critical risk threshold reached on defensive node.", 255, 30, 30)
-                }
-            }
-            "APPROVED_UNANIMOUS" => {
-                if is_es {
-                    (
-                        "UNANIMOUS AGREEMENT // 全会一致合意 (3–0)",
-                        "Los tres nodos de MAGI aprobaron la propuesta sin objeciones.",
-                        80,
-                        255,
-                        80,
-                    )
-                } else {
-                    (
-                        "UNANIMOUS AGREEMENT // 全会一致合意 (3–0)",
-                        "All three MAGI nodes approved the proposal unconditionally.",
-                        80,
-                        255,
-                        80,
-                    )
-                }
-            }
-            "APPROVED_MAJORITY" => {
-                if is_es {
-                    (
-                        "MAJORITY AGREEMENT // 多数決合意 (2–1)",
-                        "La propuesta fue aprobada por consenso mayoritario de la Trinidad.",
-                        255,
-                        174,
-                        66,
-                    )
-                } else {
-                    (
-                        "MAJORITY AGREEMENT // 多数決合意 (2–1)",
-                        "The proposal was approved by majority Trinity consensus.",
-                        255,
-                        174,
-                        66,
-                    )
-                }
-            }
-            "REJECTED_MAJORITY" => {
-                if is_es {
-                    (
-                        "MAJORITY DENIAL // 多数決拒絶 (1–2)",
-                        "La propuesta fue rechazada por mayoría de votos en la Trinidad.",
-                        255,
-                        80,
-                        80,
-                    )
-                } else {
-                    (
-                        "MAJORITY DENIAL // 多数決拒絶 (1–2)",
-                        "The proposal was rejected by majority vote across the Trinity.",
-                        255,
-                        80,
-                        80,
-                    )
-                }
-            }
-            "REJECTED_UNANIMOUS" => {
-                if is_es {
-                    (
-                        "UNANIMOUS DENIAL // 全会一致拒絶 (0–3)",
-                        "Los tres nodos de MAGI rechazaron la propuesta categóricamente.",
-                        255,
-                        40,
-                        40,
-                    )
-                } else {
-                    (
-                        "UNANIMOUS DENIAL // 全会一致拒絶 (0–3)",
-                        "All three MAGI nodes rejected the proposal outright.",
-                        255,
-                        40,
-                        40,
-                    )
-                }
-            }
-            "SPLIT_DECISION_REQUIRES_REVIEW" => {
-                if is_es {
-                    ("SPLIT DECISION // 分裂評決 · 再審議要求 (1–1–1)", "La Trinidad no alcanzó una mayoría decisiva. Requiere revisión de operador humano.", 255, 190, 40)
-                } else {
-                    ("SPLIT DECISION // 分裂評決 · 再審議要求 (1–1–1)", "The Trinity did not reach a decisive majority. Human operator review required.", 255, 190, 40)
-                }
-            }
-            other => (other, "Unrecognized consensus state.", 200, 100, 200),
+            "CONSENSUS_UNAVAILABLE" => (
+                bundle.ui.verdict_unavailable_title.as_str(),
+                bundle.ui.verdict_unavailable_detail.as_str(),
+                255,
+                60,
+                60,
+            ),
+            "VETO_BALTHASAR_SECURITY" => (
+                bundle.ui.verdict_veto_title.as_str(),
+                bundle.ui.verdict_veto_detail.as_str(),
+                255,
+                30,
+                30,
+            ),
+            "APPROVED_UNANIMOUS" => (
+                bundle.ui.verdict_unanimous_approve_title.as_str(),
+                bundle.ui.verdict_unanimous_approve_detail.as_str(),
+                80,
+                255,
+                80,
+            ),
+            "APPROVED_MAJORITY" => (
+                bundle.ui.verdict_majority_approve_title.as_str(),
+                bundle.ui.verdict_majority_approve_detail.as_str(),
+                255,
+                174,
+                66,
+            ),
+            "REJECTED_MAJORITY" => (
+                bundle.ui.verdict_majority_reject_title.as_str(),
+                bundle.ui.verdict_majority_reject_detail.as_str(),
+                255,
+                80,
+                80,
+            ),
+            "REJECTED_UNANIMOUS" => (
+                bundle.ui.verdict_unanimous_reject_title.as_str(),
+                bundle.ui.verdict_unanimous_reject_detail.as_str(),
+                255,
+                40,
+                40,
+            ),
+            "SPLIT_DECISION_REQUIRES_REVIEW" => (
+                bundle.ui.verdict_split_title.as_str(),
+                bundle.ui.verdict_split_detail.as_str(),
+                255,
+                190,
+                40,
+            ),
+            other => (
+                other,
+                bundle.ui.verdict_unrecognized_detail.as_str(),
+                200,
+                100,
+                200,
+            ),
         };
 
         // Giant NERV Consensus Banner Box with exact Unicode display width alignment
@@ -1094,16 +654,9 @@ impl NervTheme {
             summary.trim()
         };
 
-        let status_label = if is_es { "▶ ESTADO:" } else { "▶ STATUS:" };
-        let synth_label = if is_es {
-            "▶ SÍNTESIS:"
-        } else {
-            "▶ SYNTHESIS:"
-        };
-
         println!(
             "  {} {}",
-            status_label.truecolor(255, 174, 66).bold(),
+            bundle.ui.status_label.truecolor(255, 174, 66).bold(),
             detail.white()
         );
         let _ = std::io::stdout().flush();
@@ -1111,7 +664,7 @@ impl NervTheme {
 
         println!(
             "  {} {}",
-            synth_label.truecolor(255, 174, 66).bold(),
+            bundle.ui.synth_label.truecolor(255, 174, 66).bold(),
             clean_summary.truecolor(220, 220, 220)
         );
         let _ = std::io::stdout().flush();

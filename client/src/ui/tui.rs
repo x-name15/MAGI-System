@@ -208,7 +208,7 @@ pub async fn run_interactive_session(
                             .await?;
 
                         NervTheme::print_deliberation_header(id, &title, &config.author);
-                        let evals = orchestrator.deliberate_idea(&question, &content).await?;
+                        let evals = orchestrator.deliberate_idea(&question, &content, 2).await?;
 
                         db_client.submit_evaluations(id, &evals).await?;
 
@@ -273,6 +273,7 @@ pub async fn run_interactive_session(
                                 &code_content,
                                 &guidelines_content,
                                 &instructions,
+                                2,
                             )
                             .await?;
 
@@ -334,7 +335,7 @@ pub async fn run_interactive_session(
                             .await?;
 
                         let (lead, eval, escalation) = orchestrator
-                            .triage_error(&error_text, code_content.as_deref())
+                            .triage_error(&error_text, code_content.as_deref(), 2)
                             .await?;
 
                         db_client
@@ -429,7 +430,7 @@ pub async fn run_interactive_session(
                             &config.author,
                         );
                         let evals = orchestrator
-                            .deliberate_idea(&prompt, &context_payload)
+                            .deliberate_idea(&prompt, &context_payload, 2)
                             .await?;
 
                         db_client.submit_evaluations(id, &evals).await?;

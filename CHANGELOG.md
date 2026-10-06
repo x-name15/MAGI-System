@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.2.0] - 2026-10-06 — Architectural Helper Decoupling, Pure Local Consensus & Model Context Protocol (MCP) Server
+
+### Added
+- **Model Context Protocol (MCP) Server (`magi mcp`):** Native MCP server implementation over `stdio` conforming to the 2024-11-05 JSON-RPC specification. Exposes `deliberate_with_magi` tool allowing AI coding agents (such as Antigravity and Claude Desktop) to invoke the Evangelion Trinity consensus engine directly within their tool execution environment.
+- **Pure Local Consensus Engine (`core::helpers::consensus_helper`):** Standalone consensus and security veto resolver supporting offline deliberation, instant evaluation, and i18n summary resolution without requiring an active SpacetimeDB connection.
+- **Deep Deliberation Rounds (`--rounds N`):** Configurable multi-round debate depth across all CLI workflows (`idea`, `maintain`, `triage`, `audit`). Intermediate rounds (2 to $N-1$) iteratively expose previous peer positions and risk flags, culminating in a definitive final verdict round.
+- **Semantic Process Exit Codes:** CLI subcommands terminate with standard exit codes (`0` for APPROVED, `1` for REJECTED / VETO, `2` for SPLIT / NEUTRAL, `3` for ERROR), enabling seamless integration into automated CI/CD and autonomous quality loops.
+- **Machine-Readable JSON Output (`--output json`):** Added structured JSON serialization via `ui::output::JsonOutput` providing machine-ingestible envelopes with deliberation ID, category, verdict summary, debate rounds count, and per-node metrics.
+- **Explicit Language Configuration (`--lang`):** Added global `--lang <en|es>` CLI flag and `MAGI_LANG` / `LANG` environment resolution.
+- **Architectural Helpers Decoupling:** Modularized internal logic across dedicated submodules:
+  - `core::helpers`: `debate_helper`, `triage_helper`, `consensus_helper`.
+  - `llm::helpers`: `dispatch_helper`, `json_repair_helper`, `parser_helper`.
+  - `ui::helpers`: `layout_helper` (CJK-aware display width and triangular screen wireframe), `monitor_helper` (diegetic CRT monitor formatters).
+  - `mcp`: `protocol`, `handler`, `stdio` event loop.
+- **Docker Volume Isolation & Zero Host Pollution:** Migrated SpacetimeDB data storage and Cargo build caches to dedicated Docker named volumes (`spacetimedb_data:/stdb`, `cargo_target:/workspace/target`, `cargo_cache`, `cargo_git`), completely eliminating host disk pollution and intermediate target directories. Set `user: root` for SpacetimeDB to resolve Linux UID file permission conflicts (`os error 13`).
+- **OpenRouter & Universal OpenAI-Compatible Multi-Model Deliberation:** Full native support for OpenRouter (`https://openrouter.ai/api/v1`), including smart `OPENROUTER_API_KEY` auto-detection and high-capacity free tier routers (`nvidia/nemotron-3-super-120b-a12b:free`, `cohere/north-mini-code:free`, `openrouter/free`). Added configurable HTTP timeout (`MAGI_TIMEOUT_SECONDS`, default 120s).
+- **Multi-Tier Robust JSON Parser & Automatic Repair:** Enhanced `json_repair_helper` to recover unquoted keys, clean leading structural punctuation, and handle dot-prefixed keys (`.vote`, `.risk_score`, etc.). Added Serde deserialization aliases across `RawNodeOutput` and dynamic `serde_json::Value` fallback extraction to prevent crashes on non-standard model schema deviations.
+- **Unified English Documentation:** Standardized all repository documentation (`docs/`, `README.md`, `CHANGELOG.md`, `CONFIGURATION.md`) in English per project development guidelines.
+- **Comprehensive Test Suite Expansion:** Added unit tests for MCP initialization, tool listing, tool invocation, local consensus evaluation, agnostic environment resolution, and JSON parser repair, expanding test coverage to 30 passing tests (23 client + 7 server) with 0 clippy warnings.
+
+### Changed
+- **Provider-Agnostic Configuration:** Removed vendor bias, hardcoded priority chains, and dated version strings in `config.rs`. Added generic environment variable support (`MAGI_PROVIDER`, `LLM_PROVIDER`, `LLM_MODEL`, `LLM_ENDPOINT`, `LLM_API_KEY`) alongside per-node overrides.
+- **Neutral Default Configuration:** `Default for MagiConfig` now initializes a neutral, offline-safe mock environment rather than hardcoding cloud vendor models.
+- **Zero Hardcoded Stopwords / Strings:** Completely eliminated `is_spanish_text` and substring keyword heuristics in favor of clean catalog-driven internationalization (`client/i18n/`).
+
+---
+
 ## [0.1.4] - 2026-10-02 — i18n Localization Engine, Zero-Config Provider Inference & Documentation Overhaul
 
 ### Added

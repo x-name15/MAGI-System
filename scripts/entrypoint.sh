@@ -3,7 +3,7 @@ set -e
 
 # If called with development tools or shells, execute directly
 case "$1" in
-    bash|sh|cargo|rustc|git)
+    bash|sh|cargo|rustc|git|spacetime)
         exec "$@"
         ;;
 esac

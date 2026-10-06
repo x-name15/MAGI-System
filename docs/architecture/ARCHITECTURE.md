@@ -17,7 +17,7 @@ MAGI operates as a **hybrid developer tool** with two complementary operational 
 * **Not an auto-fixing or silent code refactor bot:** MAGI deliberates, audits, analyzes risk, and produces structured verdicts; it never modifies user source files without human intervention.
 * **Not a GUI windowed desktop app or bloated IDE plugin:** It is engineered strictly for the developer's terminal.
 * **Not a single-model prompt wrapper:** It is an asynchronous multi-agent consensus system requiring distinct analytical lenses executed in parallel across independent models.
-* **Not a proprietary cloud SaaS:** All consensus state runs locally in SpacetimeDB with zero cloud database lock-in. The LLM layer is completely open and pluggable: users can use cloud providers (Google Gemini, OpenAI, Anthropic, xAI Grok, DeepSeek) or run 100% offline with local models (Ollama).
+* **Not a proprietary cloud SaaS:** All consensus state runs locally in SpacetimeDB with zero cloud database lock-in. The LLM layer is 100% open and vendor-agnostic: powered by standard OpenAI Chat Completions REST API, supporting any cloud endpoint, local model runner (Ollama, LM Studio, vLLM), or proxy gateway (LiteLLM, OpenRouter).
 
 ---
 
@@ -55,7 +55,7 @@ MAGI operates as a **hybrid developer tool** with two complementary operational 
   * `Balthasar-2` (`balthasar.rs` — The Mother): Analyzes cybersecurity, threat models, CWE detection, and holds unilateral VETO power (`risk_score >= 8` with `REJECT`).
   * `Casper-3` (`casper.rs` — The Woman): Analyzes DX, pragmatism, delivery reality, and anti-overengineering.
 * **`PromptLoader` (`client/src/skills/`):** Decouples persona prompts to Markdown files (`client/skills/magi-system/`) and injects custom operator skills (`--skill`).
-* **Universal Dispatcher (`client/src/llm/`):** Asynchronous provider engine supporting Google Gemini, OpenAI, Anthropic, xAI Grok, DeepSeek, Ollama, and offline Mock.
+* **Universal Dispatcher (`client/src/llm/helpers/dispatch_helper.rs`):** Protocol-agnostic HTTP engine speaking standard OpenAI Chat Completions REST API, with prompt schemas externalized into i18n catalogs.
 * **`MagiOrchestrator` (`client/src/core/orchestrator.rs`):** Orchestrates the 2-round deliberation lifecycle, specialist incident routing, latency tracking, and SpacetimeDB synchronization.
 * **`DbClient` (`client/src/db/client.rs`):** Manages SpacetimeDB WebSocket/HTTP subscriptions and reducer invocations.
 * **`NervTheme` (`client/src/ui/nerv_theme.rs`):** Diegetic CRT phosphor terminal theme rendering animations, monitors, and evaluation tables.

@@ -109,6 +109,7 @@ Deep dive into the architecture, configuration, and internal protocols:
 
 - **[Documentation Overview](docs/README.md):** Full documentation directory map.
 - **[Getting Started](docs/guides/GETTING_STARTED.md):** Step-by-step setup and quickstart workflows.
+- **[Configuration Guide (API Keys & Providers)](docs/guides/CONFIGURATION.md):** Setup guide for Global vs. Granular API keys (OpenRouter, local models, cloud).
 - **[CLI & TUI Manual](docs/guides/CLI_AND_TUI.md):** Complete guide for all CLI subcommands, prompt options, and interactive console.
 - **[The Evangelion Trinity & Debate Protocol](docs/architecture/TRINITY.md):** The three archetypes, 2-round cross-examination, and decision matrix.
 - **[System Architecture](docs/architecture/ARCHITECTURE.md):** SpacetimeDB transactional engine, WASM reducers, and multi-agent concurrency.
