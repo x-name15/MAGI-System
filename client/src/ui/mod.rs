@@ -9,5 +9,9 @@ pub mod tui;
 
 pub use nerv_theme::NervTheme;
 pub use output::JsonOutput;
-pub use report::save_host_deliberation_report;
+#[allow(unused_imports)]
+pub use report::{
+    get_next_local_deliberation_id, save_host_deliberation_report,
+    save_host_deliberation_report_opts,
+};
 pub use tui::run_interactive_session;

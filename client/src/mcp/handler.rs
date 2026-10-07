@@ -278,6 +278,64 @@ impl McpHandler {
         }
     }
 
+    /// Registers deliberation in SpacetimeDB and saves the Markdown audit report to `deliberations/`.
+    #[allow(clippy::too_many_arguments)]
+    async fn record_and_persist(
+        &self,
+        category: &str,
+        title: &str,
+        prompt: &str,
+        context_type: &str,
+        context_payload: &str,
+        evaluations: &[crate::llm::NodeEvaluation],
+        verdict: &str,
+        summary: &str,
+    ) -> u64 {
+        let db_client = crate::db::SpacetimeClient::new(
+            self.config.spacetimedb_uri.clone(),
+            self.config.spacetimedb_database.clone(),
+        );
+
+        let deliberation_id = match db_client
+            .create_deliberation(
+                &self.config.author,
+                category,
+                title,
+                prompt,
+                context_type,
+                context_payload,
+                "ALL",
+            )
+            .await
+        {
+            Ok(id) => {
+                let _ = db_client.submit_evaluations(id, evaluations).await;
+                id
+            }
+            Err(e) => {
+                eprintln!(
+                    "[MAGI MCP] SpacetimeDB registration skipped or unavailable: {}",
+                    e
+                );
+                crate::ui::report::get_next_local_deliberation_id()
+            }
+        };
+
+        let (effective_id, _) = crate::ui::report::save_host_deliberation_report_opts(
+            deliberation_id,
+            title,
+            category,
+            context_type,
+            context_payload,
+            evaluations,
+            verdict,
+            summary,
+            true, // silent mode: stdout must remain pure JSON-RPC
+        );
+
+        effective_id
+    }
+
     /// Executes general deliberation based on parameters received in `tools/call`.
     async fn execute_deliberation(
         &self,
@@ -316,7 +374,8 @@ impl McpHandler {
 
         let orchestrator = MagiOrchestrator::new(self.config.clone(), is_mock)
             .map_err(|e| format!("Failed to create orchestrator: {}", e))?
-            .with_custom_skill(self.custom_skill.clone());
+            .with_custom_skill(self.custom_skill.clone())
+            .silent(true);
 
         let evaluations = if let Some(guide) = guidelines {
             orchestrator
@@ -333,10 +392,29 @@ impl McpHandler {
         let lang = Language::detect(context);
         let consensus = calculate_local_consensus(&evaluations, lang);
 
+        let title = if prompt.len() > 60 {
+            format!("{}...", &prompt[..57])
+        } else {
+            prompt.to_string()
+        };
+
+        let delib_id = self
+            .record_and_persist(
+                "MCP_DELIBERATION",
+                &title,
+                prompt,
+                "SOURCE",
+                context,
+                &evaluations,
+                &consensus.verdict,
+                &consensus.summary,
+            )
+            .await;
+
         let text_content = if output_format == "markdown" {
             let mut md = format!(
-                "# MAGI Trinity Consensus: {}\n\n**Verdict**: {}\n**Summary**: {}\n**Rounds**: {}\n\n",
-                consensus.simple_verdict, consensus.verdict, consensus.summary, rounds
+                "# MAGI Trinity Consensus #{:04}: {}\n\n**Verdict**: {}\n**Summary**: {}\n**Rounds**: {}\n\n",
+                delib_id, consensus.simple_verdict, consensus.verdict, consensus.summary, rounds
             );
 
             md.push_str("## Node Evaluations\n\n");
@@ -353,8 +431,8 @@ impl McpHandler {
             md
         } else {
             let json_out = JsonOutput::build(
-                0,
-                "MCP Trinity Audit",
+                delib_id,
+                &title,
                 "MCP_DELIBERATION",
                 "SOURCE",
                 &consensus.verdict,
@@ -436,7 +514,8 @@ impl McpHandler {
 
         let orchestrator = MagiOrchestrator::new(self.config.clone(), is_mock)
             .map_err(|e| format!("Failed to create orchestrator: {}", e))?
-            .with_custom_skill(self.custom_skill.clone());
+            .with_custom_skill(self.custom_skill.clone())
+            .silent(true);
 
         let evaluations = if let Some(guide) = guidelines {
             orchestrator
@@ -453,10 +532,23 @@ impl McpHandler {
         let lang = Language::detect(&diff_text);
         let consensus = calculate_local_consensus(&evaluations, lang);
 
+        let delib_id = self
+            .record_and_persist(
+                "GIT_DIFF_AUDIT",
+                "Git Diff Audit",
+                prompt,
+                "CODE_DIFF",
+                &diff_text,
+                &evaluations,
+                &consensus.verdict,
+                &consensus.summary,
+            )
+            .await;
+
         let text_content = if output_format == "markdown" {
             let mut md = format!(
-                "# MAGI Git Diff Audit Consensus: {}\n\n**Verdict**: {}\n**Summary**: {}\n**Rounds**: {}\n\n",
-                consensus.simple_verdict, consensus.verdict, consensus.summary, rounds
+                "# MAGI Git Diff Audit Consensus #{:04}: {}\n\n**Verdict**: {}\n**Summary**: {}\n**Rounds**: {}\n\n",
+                delib_id, consensus.simple_verdict, consensus.verdict, consensus.summary, rounds
             );
             if let Some(ctx) = orchestrator.project_context() {
                 md.push_str(&format!("**Project Context**: {}\n\n", ctx.summary()));
@@ -482,7 +574,7 @@ impl McpHandler {
             md
         } else {
             let json_out = JsonOutput::build(
-                0,
+                delib_id,
                 "Git Diff Audit",
                 "GIT_DIFF_AUDIT",
                 "CODE_DIFF",
@@ -534,7 +626,8 @@ impl McpHandler {
 
         let orchestrator = MagiOrchestrator::new(self.config.clone(), is_mock)
             .map_err(|e| format!("Failed to create orchestrator: {}", e))?
-            .with_custom_skill(self.custom_skill.clone());
+            .with_custom_skill(self.custom_skill.clone())
+            .silent(true);
 
         let (lead_node, opening_eval, trinity_evals_opt) = orchestrator
             .triage_error(error_log, code_context, rounds)
@@ -545,10 +638,24 @@ impl McpHandler {
         let lang = Language::detect(error_log);
         let consensus = calculate_local_consensus(&evaluations, lang);
 
+        let title = format!("Incident Triage: routed to {}", lead_node);
+        let delib_id = self
+            .record_and_persist(
+                "INCIDENT_TRIAGE",
+                &title,
+                "Triage runtime error and recommend mitigation",
+                "ERROR_LOG",
+                error_log,
+                &evaluations,
+                &consensus.verdict,
+                &consensus.summary,
+            )
+            .await;
+
         let text_content = if output_format == "markdown" {
             let mut md = format!(
-                "# MAGI Incident Triage: {}\n\n**Specialist Routing**: {}\n**Consensus Verdict**: {}\n**Summary**: {}\n\n",
-                consensus.simple_verdict, lead_node, consensus.verdict, consensus.summary
+                "# MAGI Incident Triage #{:04}: {}\n\n**Specialist Routing**: {}\n**Consensus Verdict**: {}\n**Summary**: {}\n\n",
+                delib_id, consensus.simple_verdict, lead_node, consensus.verdict, consensus.summary
             );
             md.push_str("## Specialist Opening Finding\n\n");
             md.push_str(&format!(
@@ -568,8 +675,8 @@ impl McpHandler {
             md
         } else {
             let json_out = JsonOutput::build(
-                0,
-                &format!("Incident Triage: routed to {}", lead_node),
+                delib_id,
+                &title,
                 "INCIDENT_TRIAGE",
                 "ERROR_LOG",
                 &consensus.verdict,
@@ -618,7 +725,8 @@ impl McpHandler {
 
         let orchestrator = MagiOrchestrator::new(self.config.clone(), is_mock)
             .map_err(|e| format!("Failed to create orchestrator: {}", e))?
-            .with_custom_skill(self.custom_skill.clone());
+            .with_custom_skill(self.custom_skill.clone())
+            .silent(true);
 
         let eval = orchestrator
             .evaluate_security_veto(context, prompt)
@@ -627,10 +735,23 @@ impl McpHandler {
 
         let veto_enforced = eval.risk_score >= 8 && eval.vote == "REJECT";
 
+        let delib_id = self
+            .record_and_persist(
+                "SECURITY_VETO",
+                "Balthasar-2 Security Audit",
+                prompt,
+                "SOURCE",
+                context,
+                std::slice::from_ref(&eval),
+                &eval.vote,
+                &eval.argument,
+            )
+            .await;
+
         let text_content = if output_format == "markdown" {
             let mut md = format!(
-                "# Balthasar-2 Security Audit\n\n**Vote**: {}\n**Risk Score**: {}/10\n**Security Veto Enforced**: {}\n**Confidence**: {:.0}%\n\n",
-                eval.vote, eval.risk_score, veto_enforced, eval.confidence * 100.0
+                "# Balthasar-2 Security Audit #{:04}\n\n**Vote**: {}\n**Risk Score**: {}/10\n**Security Veto Enforced**: {}\n**Confidence**: {:.0}%\n\n",
+                delib_id, eval.vote, eval.risk_score, veto_enforced, eval.confidence * 100.0
             );
             if !eval.cwe_flags.is_empty() {
                 md.push_str(&format!(
@@ -649,6 +770,7 @@ impl McpHandler {
             md
         } else {
             let json_val = json!({
+                "deliberation_id": delib_id,
                 "node_id": eval.node_id,
                 "vote": eval.vote,
                 "risk_score": eval.risk_score,
@@ -703,7 +825,8 @@ impl McpHandler {
 
         let orchestrator = MagiOrchestrator::new(self.config.clone(), is_mock)
             .map_err(|e| format!("Failed to create orchestrator: {}", e))?
-            .with_custom_skill(self.custom_skill.clone());
+            .with_custom_skill(self.custom_skill.clone())
+            .silent(true);
 
         let evaluations = orchestrator
             .deliberate_debate(dilemma, context, rounds)
@@ -713,10 +836,23 @@ impl McpHandler {
         let lang = Language::detect(dilemma);
         let consensus = calculate_local_consensus(&evaluations, lang);
 
+        let delib_id = self
+            .record_and_persist(
+                "TECHNICAL_DEBATE",
+                dilemma,
+                dilemma,
+                "DILEMMA",
+                context.unwrap_or(dilemma),
+                &evaluations,
+                &consensus.verdict,
+                &consensus.summary,
+            )
+            .await;
+
         let text_content = if output_format == "markdown" {
             let mut md = format!(
-                "# MAGI Technical Debate: {}\n\n**Question**: {}\n**Consensus Verdict**: {}\n**Synthesis**: {}\n**Rounds**: {}\n\n",
-                consensus.simple_verdict, dilemma, consensus.verdict, consensus.summary, rounds
+                "# MAGI Technical Debate #{:04}: {}\n\n**Question**: {}\n**Consensus Verdict**: {}\n**Synthesis**: {}\n**Rounds**: {}\n\n",
+                delib_id, consensus.simple_verdict, dilemma, consensus.verdict, consensus.summary, rounds
             );
             md.push_str("## Node Arguments & Trade-Offs\n\n");
             for eval in &evaluations {
@@ -728,7 +864,7 @@ impl McpHandler {
             md
         } else {
             let json_out = JsonOutput::build(
-                0,
+                delib_id,
                 dilemma,
                 "TECHNICAL_DEBATE",
                 "DILEMMA",

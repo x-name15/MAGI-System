@@ -23,6 +23,7 @@ pub struct MagiOrchestrator {
     prompt_loader: crate::skills::PromptLoader,
     custom_skill: Option<String>,
     project_context: Option<crate::core::helpers::ProjectContext>,
+    silent: bool,
 }
 
 impl MagiOrchestrator {
@@ -56,7 +57,14 @@ impl MagiOrchestrator {
             prompt_loader: crate::skills::PromptLoader::new(),
             custom_skill: None,
             project_context,
+            silent: false,
         })
+    }
+
+    /// Sets silent mode to suppress console spinner and progress logs.
+    pub fn silent(mut self, silent: bool) -> Self {
+        self.silent = silent;
+        self
     }
 
     /// Injects custom project skill or instruction markdown before deliberation.
@@ -327,16 +335,18 @@ impl MagiOrchestrator {
         let lang = crate::i18n::Language::detect(&combined_text);
         let bundle = crate::i18n::get_bundle(lang);
 
-        eprintln!();
-        eprintln!(
-            "{}",
-            format!(
-                "  \u{27f3} [{}] ({} rounds)",
-                bundle.ui.consulting_trinity, effective_rounds
-            )
-            .bright_yellow()
-            .bold()
-        );
+        if !self.silent {
+            eprintln!();
+            eprintln!(
+                "{}",
+                format!(
+                    "  [*] [{}] ({} rounds)",
+                    bundle.ui.consulting_trinity, effective_rounds
+                )
+                .bright_yellow()
+                .bold()
+            );
+        }
 
         let evaluation_future = async {
             // Round 1: independent evaluations

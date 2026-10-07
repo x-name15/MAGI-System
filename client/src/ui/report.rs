@@ -8,11 +8,36 @@
 use crate::i18n::{get_bundle, Language};
 use crate::llm::NodeEvaluation;
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
+
+/// Returns the next sequential deliberation ID based on files in `deliberations/`.
+pub fn get_next_local_deliberation_id() -> u64 {
+    let dir = Path::new("deliberations");
+    if !dir.exists() {
+        return 1;
+    }
+    let mut max_id = 0u64;
+    if let Ok(entries) = fs::read_dir(dir) {
+        for entry in entries.flatten() {
+            let filename = entry.file_name().to_string_lossy().to_string();
+            if filename.starts_with("deliberation_") && filename.ends_with(".md") {
+                let parts: Vec<&str> = filename.split('_').collect();
+                if parts.len() >= 2 {
+                    if let Ok(id) = parts[1].parse::<u64>() {
+                        if id > max_id {
+                            max_id = id;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    max_id + 1
+}
 
 /// Writes a structured Markdown audit report and prompt context to the `deliberations/` directory.
 #[allow(clippy::too_many_arguments)]
-pub fn save_host_deliberation_report(
+pub fn save_host_deliberation_report_opts(
     deliberation_id: u64,
     title: &str,
     category: &str,
@@ -21,11 +46,18 @@ pub fn save_host_deliberation_report(
     evaluations: &[NodeEvaluation],
     verdict: &str,
     summary: &str,
-) {
+    silent: bool,
+) -> (u64, PathBuf) {
     let dir = Path::new("deliberations");
     if !dir.exists() {
         let _ = fs::create_dir_all(dir);
     }
+
+    let effective_id = if deliberation_id == 0 {
+        get_next_local_deliberation_id()
+    } else {
+        deliberation_id
+    };
 
     // Detect language from title, summary, or input context
     let combined_text = format!("{} {} {}", title, summary, input_context);
@@ -50,13 +82,13 @@ pub fn save_host_deliberation_report(
     } else {
         clean_title
     };
-    let filename = format!("deliberation_{:04}_{}.md", deliberation_id, slug);
+    let filename = format!("deliberation_{:04}_{}.md", effective_id, slug);
     let filepath = dir.join(filename);
 
     let mut report = String::new();
     report.push_str(&format!(
         "# {} #{:04}: {}\n\n",
-        r.title_prefix, deliberation_id, title
+        r.title_prefix, effective_id, title
     ));
     report.push_str(&format!("- **{}**: {}\n", r.category, category));
     report.push_str(&format!("- **{}**: {}\n", r.context_type, context_type));
@@ -174,11 +206,42 @@ pub fn save_host_deliberation_report(
     report.push_str("\n```\n");
 
     match fs::write(&filepath, report) {
-        Ok(_) => println!("[HOST PERSISTENCE] {}: {}", r.saved_msg, filepath.display()),
+        Ok(_) => {
+            if !silent {
+                eprintln!("[HOST PERSISTENCE] {}: {}", r.saved_msg, filepath.display());
+            }
+        }
         Err(e) => eprintln!(
             "Warning: Unable to save host deliberation report {}: {}",
             filepath.display(),
             e
         ),
     }
+
+    (effective_id, filepath)
+}
+
+/// Backwards-compatible wrapper that prints the saved report location to stderr.
+#[allow(clippy::too_many_arguments)]
+pub fn save_host_deliberation_report(
+    deliberation_id: u64,
+    title: &str,
+    category: &str,
+    context_type: &str,
+    input_context: &str,
+    evaluations: &[NodeEvaluation],
+    verdict: &str,
+    summary: &str,
+) {
+    let _ = save_host_deliberation_report_opts(
+        deliberation_id,
+        title,
+        category,
+        context_type,
+        input_context,
+        evaluations,
+        verdict,
+        summary,
+        false,
+    );
 }

@@ -9,7 +9,7 @@
 *.key
 
 # Local Test files
-deliberations/deliberation_*
+**/deliberations/deliberation_*
 /proposals/
 test_idea.md
 
