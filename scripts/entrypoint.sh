@@ -11,7 +11,7 @@ case "$1" in
 esac
 
 # Incrementally build magi binary inside container so changes are always compiled
-cargo build --bin magi --quiet
+cargo build --bin magi --quiet >&2
 
 # Otherwise execute magi CLI with arguments
 exec /workspace/target/debug/magi "$@"

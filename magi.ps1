@@ -17,13 +17,15 @@
     .\magi.ps1 maintain client\src\main.rs -g docs\guides\OPERATIONS.md
     .\magi.ps1 triage "panic in connection pool"
     .\magi.ps1 history
+    .\magi.ps1 purge
+    .\magi.ps1 purge --hard
     .\magi.ps1 console
     .\magi.ps1 up
     .\magi.ps1 down
 #>
 
 param(
-    [Parameter(ValueFromRemainingArguments = $true)]
+    [Parameter(Position = 0, ValueFromRemainingArguments = $true)]
     [string[]]$Arguments
 )
 
@@ -41,8 +43,8 @@ function Write-NervBanner {
 function Ensure-SpacetimeDB {
     $running = docker ps --filter "name=magi-spacetimedb" --filter "status=running" -q
     if (-not $running) {
-        Write-Host "▶ SpacetimeDB engine is not running. Starting container..." -ForegroundColor Cyan
-        docker compose up -d spacetimedb | Out-Null
+        [Console]::Error.WriteLine("▶ SpacetimeDB engine is not running. Starting container...")
+        docker compose up -d spacetimedb 2>&1 | Out-Null
         Start-Sleep -Seconds 2
     }
 }
@@ -82,13 +84,56 @@ switch ($firstArg) {
         exit $LASTEXITCODE
     }
 
+    "purge" {
+        Ensure-SpacetimeDB
+        $hard = $Arguments -contains "--hard" -or $Arguments -contains "-h" -or $Arguments -contains "--all"
+        if ($hard) {
+            Write-Host "▶ Performing HARD reset of SpacetimeDB (destroying volume & containers)..." -ForegroundColor Red
+            docker compose down -v
+            Write-Host "▶ Starting fresh SpacetimeDB container..." -ForegroundColor Cyan
+            docker compose up -d spacetimedb
+            Start-Sleep -Seconds 3
+            Write-Host "▶ Building and re-publishing magi-server WASM..." -ForegroundColor Cyan
+            docker compose run --rm magi cargo build -p magi-server --target wasm32-unknown-unknown
+            docker compose exec -T spacetimedb spacetime publish -y --server http://127.0.0.1:3000 --bin-path /target/wasm32-unknown-unknown/debug/magi_server.wasm magi-system
+            Write-Host "✔ Hard reset complete: SpacetimeDB volume wiped and re-initialized!" -ForegroundColor Green
+        } else {
+            Write-Host "▶ Purging SpacetimeDB database and reclaiming memory..." -ForegroundColor Yellow
+            docker compose exec -T spacetimedb spacetime delete -y --server http://127.0.0.1:3000 magi-system
+            Write-Host "▶ Re-publishing clean magi-server module..." -ForegroundColor Cyan
+            docker compose exec -T spacetimedb spacetime publish -y --server http://127.0.0.1:3000 --bin-path /target/wasm32-unknown-unknown/debug/magi_server.wasm magi-system
+            Write-Host "✔ SpacetimeDB database and memory successfully purged!" -ForegroundColor Green
+        }
+        exit $LASTEXITCODE
+    }
+
+    "clear" {
+        Ensure-SpacetimeDB
+        Write-Host "▶ Purging SpacetimeDB database and reclaiming memory..." -ForegroundColor Yellow
+        docker compose exec -T spacetimedb spacetime delete -y --server http://127.0.0.1:3000 magi-system
+        Write-Host "▶ Re-publishing clean magi-server module..." -ForegroundColor Cyan
+        docker compose exec -T spacetimedb spacetime publish -y --server http://127.0.0.1:3000 --bin-path /target/wasm32-unknown-unknown/debug/magi_server.wasm magi-system
+        Write-Host "✔ SpacetimeDB database and memory successfully purged!" -ForegroundColor Green
+        exit $LASTEXITCODE
+    }
+
+    "reset" {
+        Ensure-SpacetimeDB
+        Write-Host "▶ Purging SpacetimeDB database and reclaiming memory..." -ForegroundColor Yellow
+        docker compose exec -T spacetimedb spacetime delete -y --server http://127.0.0.1:3000 magi-system
+        Write-Host "▶ Re-publishing clean magi-server module..." -ForegroundColor Cyan
+        docker compose exec -T spacetimedb spacetime publish -y --server http://127.0.0.1:3000 --bin-path /target/wasm32-unknown-unknown/debug/magi_server.wasm magi-system
+        Write-Host "✔ SpacetimeDB database and memory successfully purged!" -ForegroundColor Green
+        exit $LASTEXITCODE
+    }
+
     "build" {
         Ensure-SpacetimeDB
         Write-Host "▶ Building MAGI client and server WASM inside container..." -ForegroundColor Cyan
         docker compose run --rm magi cargo build --bin magi
         docker compose run --rm magi cargo build -p magi-server --target wasm32-unknown-unknown
         Write-Host "▶ Publishing magi-server module to SpacetimeDB..." -ForegroundColor Cyan
-        docker compose exec spacetimedb spacetime publish -y --server http://127.0.0.1:3000 --bin-path /target/wasm32-unknown-unknown/debug/magi_server.wasm magi-system
+        docker compose exec -T spacetimedb spacetime publish -y --server http://127.0.0.1:3000 --bin-path /target/wasm32-unknown-unknown/debug/magi_server.wasm magi-system
         exit $LASTEXITCODE
     }
 
@@ -117,7 +162,8 @@ switch ($firstArg) {
     }
 
     "mcp" {
-        docker compose run -i -T --rm magi mcp
+        Ensure-SpacetimeDB
+        docker compose --progress quiet run -q -i -T --rm magi mcp
         exit $LASTEXITCODE
     }
 

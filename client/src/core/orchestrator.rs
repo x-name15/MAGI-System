@@ -327,8 +327,8 @@ impl MagiOrchestrator {
         let lang = crate::i18n::Language::detect(&combined_text);
         let bundle = crate::i18n::get_bundle(lang);
 
-        println!();
-        println!(
+        eprintln!();
+        eprintln!(
             "{}",
             format!(
                 "  \u{27f3} [{}] ({} rounds)",
