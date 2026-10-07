@@ -22,6 +22,7 @@ pub struct MagiOrchestrator {
     casper: Arc<dyn LlmProvider>,
     prompt_loader: crate::skills::PromptLoader,
     custom_skill: Option<String>,
+    project_context: Option<crate::core::helpers::ProjectContext>,
 }
 
 impl MagiOrchestrator {
@@ -45,6 +46,8 @@ impl MagiOrchestrator {
             )
         };
 
+        let project_context = crate::core::helpers::discover_project_context(None);
+
         Ok(Self {
             config,
             melchior,
@@ -52,6 +55,7 @@ impl MagiOrchestrator {
             casper,
             prompt_loader: crate::skills::PromptLoader::new(),
             custom_skill: None,
+            project_context,
         })
     }
 
@@ -59,6 +63,21 @@ impl MagiOrchestrator {
     pub fn with_custom_skill(mut self, custom_skill: Option<String>) -> Self {
         self.custom_skill = custom_skill;
         self
+    }
+
+    /// Sets or overrides the discovered project ecosystem context.
+    #[allow(dead_code)]
+    pub fn with_project_context(
+        mut self,
+        context: Option<crate::core::helpers::ProjectContext>,
+    ) -> Self {
+        self.project_context = context;
+        self
+    }
+
+    /// Returns a reference to the discovered project context, if any.
+    pub fn project_context(&self) -> Option<&crate::core::helpers::ProjectContext> {
+        self.project_context.as_ref()
     }
 
     /// Case 1: Evaluates an Idea / Markdown specification across the Trinity.
@@ -220,8 +239,14 @@ impl MagiOrchestrator {
             .prompt_loader
             .compose_prompt(&base_b, self.custom_skill.as_deref());
 
+        let effective_context = if let Some(ref ctx) = self.project_context {
+            format!("{}\n\n{}", ctx.to_prompt_header(), context)
+        } else {
+            context.to_string()
+        };
+
         self.balthasar
-            .evaluate("Balthasar-2", &prompt_b, instructions, context)
+            .evaluate("Balthasar-2", &prompt_b, instructions, &effective_context)
             .await
     }
 
@@ -292,7 +317,13 @@ impl MagiOrchestrator {
         // with a peer-reviewed result.
         let effective_rounds = rounds.max(2);
 
-        let combined_text = format!("{} {}", user_prompt, context_payload);
+        let effective_payload = if let Some(ref ctx) = self.project_context {
+            format!("{}\n\n{}", ctx.to_prompt_header(), context_payload)
+        } else {
+            context_payload.to_string()
+        };
+
+        let combined_text = format!("{} {}", user_prompt, effective_payload);
         let lang = crate::i18n::Language::detect(&combined_text);
         let bundle = crate::i18n::get_bundle(lang);
 
@@ -311,11 +342,11 @@ impl MagiOrchestrator {
             // Round 1: independent evaluations
             let (res_m, res_b, res_c) = tokio::join!(
                 self.melchior
-                    .evaluate("Melchior-1", prompt_m, user_prompt, context_payload),
+                    .evaluate("Melchior-1", prompt_m, user_prompt, &effective_payload),
                 self.balthasar
-                    .evaluate("Balthasar-2", prompt_b, user_prompt, context_payload),
+                    .evaluate("Balthasar-2", prompt_b, user_prompt, &effective_payload),
                 self.casper
-                    .evaluate("Casper-3", prompt_c, user_prompt, context_payload),
+                    .evaluate("Casper-3", prompt_c, user_prompt, &effective_payload),
             );
 
             let first_round = vec![res_m?, res_b?, res_c?];
@@ -327,7 +358,7 @@ impl MagiOrchestrator {
                 let (debate_prompt, debate_context) = crate::core::helpers::build_debate_prompts(
                     lang,
                     user_prompt,
-                    context_payload,
+                    &effective_payload,
                     &peer_positions,
                     round_num,
                     effective_rounds,
@@ -354,7 +385,7 @@ impl MagiOrchestrator {
             let (final_prompt, final_context) = crate::core::helpers::build_debate_prompts(
                 lang,
                 user_prompt,
-                context_payload,
+                &effective_payload,
                 &peer_positions,
                 effective_rounds,
                 effective_rounds,

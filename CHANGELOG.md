@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.2.2] - 2026-10-07 — Smart Ingestion, Noise Filtering & Automatic Context Discovery
+
+### Added
+- **Automatic Project Context Discovery (`core::helpers::discovery_helper`):**
+  - Deep recursive inspection of target workspaces detecting root ecosystem manifests: Rust (`Cargo.toml` edition, packages, workspaces), Node/TypeScript (`package.json`, frameworks like Next.js, React, Express, NestJS), Go (`go.mod`), Python (`pyproject.toml`), and Docker.
+  - Automatically enriches Trinity prompts with discovered project context, ensuring Melchior, Balthasar, and Casper deliberate with full awareness of runtime idioms, memory safety guarantees, and framework constraints.
+- **Smart Diff Noise & Lockfile Filtering (`core::helpers::noise_filter_helper`):**
+  - Automated exclusion of high-noise artifacts from git diff payloads, including package lockfiles (`Cargo.lock`, `package-lock.json`, `pnpm-lock.yaml`, `yarn.lock`, `go.sum`), minified bundles (`*.min.js`, `*.min.css`), source maps (`*.map`), binaries, and generated directories (`dist/`, `target/`, `node_modules/`).
+  - Reports excluded file counts and line savings (`MAGI SMART INGESTION`) on terminal and preserves clean diff payloads for LLM context limits.
+- **CLI & MCP Telemetry Telemetry Integration:**
+  - Added `MAGI DISCOVERY` telemetry banner across `magi diff`, `magi maintain`, `magi audit`, and `magi debate`.
+  - Enriched MCP `audit_git_changes` markdown reports with project context and smart ingestion exclusion notices.
+- **Expanded Test Suite:** Added unit tests for manifest parsing, project detection, and noise filter verification, bringing total tests to 44 passing tests (37 client + 7 server) with 0 clippy warnings.
+
+---
+
 ## [0.2.1] - 2026-10-06 — Git Diff Auditing, Architectural Dilemma Debates & Expanded MCP Tool Suite
 
 ### Added

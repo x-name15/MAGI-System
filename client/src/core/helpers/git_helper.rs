@@ -1,16 +1,14 @@
 //! # Git Diff Integration Helper
 //!
-//! Provides utilities for inspecting uncommitted, staged, or branch-level git changes.
+//! Provides utilities for inspecting uncommitted, staged, or branch-level git changes,
+//! with automatic noise filtering to exclude lockfiles, minified files, and generated artifacts.
 
+use crate::core::helpers::noise_filter_helper::{filter_git_diff, FilteredDiff};
 use crate::error::MagiError;
 use std::process::Command;
 
-/// Retrieves the git diff from the current repository workspace.
-///
-/// # Arguments
-/// * `staged` - If true, retrieves staged changes (`git diff --staged`).
-/// * `branch` - Optional git reference or branch to compare against (e.g. `origin/main`).
-pub fn get_git_diff(staged: bool, branch: Option<&str>) -> Result<String, MagiError> {
+/// Retrieves the raw git diff from the current repository workspace.
+pub fn get_raw_git_diff(staged: bool, branch: Option<&str>) -> Result<String, MagiError> {
     let mut cmd = Command::new("git");
     cmd.arg("diff");
 
@@ -39,6 +37,26 @@ pub fn get_git_diff(staged: bool, branch: Option<&str>) -> Result<String, MagiEr
     Ok(diff_text)
 }
 
+/// Retrieves the git diff with noise filtering applied (excludes lockfiles, binaries, bundles).
+pub fn get_git_diff_filtered(
+    staged: bool,
+    branch: Option<&str>,
+) -> Result<FilteredDiff, MagiError> {
+    let raw = get_raw_git_diff(staged, branch)?;
+    Ok(filter_git_diff(&raw))
+}
+
+/// Retrieves the filtered git diff string from the current repository workspace.
+///
+/// # Arguments
+/// * `staged` - If true, retrieves staged changes (`git diff --staged`).
+/// * `branch` - Optional git reference or branch to compare against (e.g. `origin/main`).
+#[allow(dead_code)]
+pub fn get_git_diff(staged: bool, branch: Option<&str>) -> Result<String, MagiError> {
+    let filtered = get_git_diff_filtered(staged, branch)?;
+    Ok(filtered.content)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -57,5 +75,11 @@ mod tests {
             result.is_ok(),
             "Expected git diff --staged to succeed in repo"
         );
+    }
+
+    #[test]
+    fn test_git_diff_filtered_execution() {
+        let result = get_git_diff_filtered(false, None);
+        assert!(result.is_ok(), "Expected get_git_diff_filtered to succeed");
     }
 }

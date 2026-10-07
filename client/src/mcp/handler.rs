@@ -411,10 +411,10 @@ impl McpHandler {
                 && self.config.balthasar.api_key.is_none()
                 && self.config.casper.api_key.is_none());
 
-        let diff_text = crate::core::helpers::get_git_diff(staged, branch)
+        let filtered_diff = crate::core::helpers::get_git_diff_filtered(staged, branch)
             .map_err(|e| format!("Failed to read git diff: {}", e))?;
 
-        if diff_text.trim().is_empty() {
+        if filtered_diff.is_empty() {
             return Ok(CallToolResult {
                 content: vec![ToolContent {
                     content_type: "text".to_string(),
@@ -431,6 +431,8 @@ impl McpHandler {
                 is_error: false,
             });
         }
+
+        let diff_text = filtered_diff.content;
 
         let orchestrator = MagiOrchestrator::new(self.config.clone(), is_mock)
             .map_err(|e| format!("Failed to create orchestrator: {}", e))?
@@ -456,6 +458,16 @@ impl McpHandler {
                 "# MAGI Git Diff Audit Consensus: {}\n\n**Verdict**: {}\n**Summary**: {}\n**Rounds**: {}\n\n",
                 consensus.simple_verdict, consensus.verdict, consensus.summary, rounds
             );
+            if let Some(ctx) = orchestrator.project_context() {
+                md.push_str(&format!("**Project Context**: {}\n\n", ctx.summary()));
+            }
+            if !filtered_diff.ignored_files.is_empty() {
+                md.push_str(&format!(
+                    "> ℹ️ **Smart Ingestion**: Excluded {} lock/generated file(s) from diff: `{}`\n\n",
+                    filtered_diff.ignored_files.len(),
+                    filtered_diff.ignored_files.join(", ")
+                ));
+            }
             md.push_str("## Node Evaluations\n\n");
             for eval in &evaluations {
                 md.push_str(&format!(

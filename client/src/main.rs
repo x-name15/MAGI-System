@@ -41,7 +41,7 @@ const EXIT_SPLIT: i32 = 2;
 const EXIT_ERROR: i32 = 3;
 
 /// Output format selection for deliberation results.
-#[derive(ValueEnum, Debug, Clone, Default)]
+#[derive(ValueEnum, Debug, Clone, Default, PartialEq, Eq)]
 pub enum OutputFormat {
     /// Human-readable NERV terminal output (default).
     #[default]
@@ -671,6 +671,16 @@ async fn dispatch_command(
             let orchestrator = MagiOrchestrator::new(config.clone(), use_mock)?
                 .with_custom_skill(custom_skill_content.clone());
 
+            if let Some(ctx) = orchestrator.project_context() {
+                if output == OutputFormat::Terminal {
+                    println!(
+                        "{} {}",
+                        "MAGI DISCOVERY:".bright_cyan().bold(),
+                        ctx.summary().bright_yellow()
+                    );
+                }
+            }
+
             let eval_content = if simulate_veto {
                 format!(
                     "{}\n// format!(\"SELECT * FROM users WHERE token = '\" + token + \"'\");",
@@ -979,6 +989,16 @@ async fn dispatch_command(
             let orchestrator = MagiOrchestrator::new(config.clone(), use_mock)?
                 .with_custom_skill(custom_skill_content.clone());
 
+            if let Some(ctx) = orchestrator.project_context() {
+                if output == OutputFormat::Terminal {
+                    println!(
+                        "{} {}",
+                        "MAGI DISCOVERY:".bright_cyan().bold(),
+                        ctx.summary().bright_yellow()
+                    );
+                }
+            }
+
             let eval_content = if simulate_veto {
                 format!(
                     "{}\n// format!(\"SELECT * FROM users WHERE id = '\" + id + \"'\");",
@@ -1052,10 +1072,12 @@ async fn dispatch_command(
             }
             NervTheme::print_banner();
 
-            let diff_text = crate::core::helpers::get_git_diff(staged, branch.as_deref())
-                .map_err(|e| MagiError::Internal(format!("Failed to retrieve git diff: {}", e)))?;
+            let filtered_diff =
+                crate::core::helpers::get_git_diff_filtered(staged, branch.as_deref()).map_err(
+                    |e| MagiError::Internal(format!("Failed to retrieve git diff: {}", e)),
+                )?;
 
-            if diff_text.trim().is_empty() {
+            if filtered_diff.is_empty() {
                 let msg = if staged {
                     "No staged git changes detected to audit (use 'git add <files>' first)."
                 } else if let Some(ref b) = branch {
@@ -1080,6 +1102,28 @@ async fn dispatch_command(
                 }
                 return Ok("APPROVED".to_string());
             }
+
+            if !filtered_diff.ignored_files.is_empty() && output == OutputFormat::Terminal {
+                println!(
+                    "{} Filtered {} noise/lockfile(s) ({} lines excluded): {}",
+                    "MAGI SMART INGESTION:".bright_magenta().bold(),
+                    filtered_diff
+                        .ignored_files
+                        .len()
+                        .to_string()
+                        .bright_yellow()
+                        .bold(),
+                    filtered_diff
+                        .original_lines
+                        .saturating_sub(filtered_diff.filtered_lines)
+                        .to_string()
+                        .bright_green()
+                        .bold(),
+                    filtered_diff.ignored_files.join(", ").dimmed()
+                );
+            }
+
+            let diff_text = filtered_diff.content;
 
             let title = if staged {
                 "Git Diff (Staged Changes)".to_string()
@@ -1120,6 +1164,16 @@ async fn dispatch_command(
                     && config.casper.api_key.is_none());
             let orchestrator = MagiOrchestrator::new(config.clone(), use_mock)?
                 .with_custom_skill(custom_skill_content.clone());
+
+            if let Some(ctx) = orchestrator.project_context() {
+                if output == OutputFormat::Terminal {
+                    println!(
+                        "{} {}",
+                        "MAGI DISCOVERY:".bright_cyan().bold(),
+                        ctx.summary().bright_yellow()
+                    );
+                }
+            }
 
             let eval_diff = if simulate_veto {
                 format!(
@@ -1240,6 +1294,16 @@ async fn dispatch_command(
                     && config.casper.api_key.is_none());
             let orchestrator = MagiOrchestrator::new(config.clone(), use_mock)?
                 .with_custom_skill(custom_skill_content.clone());
+
+            if let Some(ctx) = orchestrator.project_context() {
+                if output == OutputFormat::Terminal {
+                    println!(
+                        "{} {}",
+                        "MAGI DISCOVERY:".bright_cyan().bold(),
+                        ctx.summary().bright_yellow()
+                    );
+                }
+            }
 
             let eval_context = if simulate_veto {
                 format!(
