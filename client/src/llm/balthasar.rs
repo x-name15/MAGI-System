@@ -22,6 +22,7 @@ pub struct BalthasarNode {
     pub max_retries: u32,
     pub retry_delay_ms: u64,
     pub max_context_chars: usize,
+    pub max_tokens: u32,
     prompt_loader: PromptLoader,
 }
 
@@ -37,6 +38,7 @@ impl BalthasarNode {
             max_retries: cfg.max_retries,
             retry_delay_ms: cfg.retry_delay_ms,
             max_context_chars: cfg.max_context_chars,
+            max_tokens: cfg.max_tokens,
             prompt_loader: PromptLoader::new(),
         }
     }
@@ -70,6 +72,7 @@ impl LlmProvider for BalthasarNode {
             self.max_retries,
             self.retry_delay_ms,
             self.max_context_chars,
+            self.max_tokens,
         )
         .await
     }

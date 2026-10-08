@@ -17,6 +17,7 @@ pub struct NodeConfig {
     pub max_retries: u32,
     pub retry_delay_ms: u64,
     pub max_context_chars: usize,
+    pub max_tokens: u32,
 }
 
 /// Global system configuration loaded dynamically from environment or flags.
@@ -30,6 +31,8 @@ pub struct MagiConfig {
     pub retry_delay_ms: u64,
     pub allow_degraded_quorum: bool,
     pub max_context_chars: usize,
+    #[allow(dead_code)]
+    pub max_tokens: u32,
     pub melchior: NodeConfig,
     pub balthasar: NodeConfig,
     pub casper: NodeConfig,
@@ -77,6 +80,12 @@ impl MagiConfig {
             .and_then(|v| v.parse::<usize>().ok())
             .unwrap_or(60_000);
 
+        let max_tokens = env::var("MAGI_MAX_TOKENS")
+            .or_else(|_| env::var("LLM_MAX_TOKENS"))
+            .ok()
+            .and_then(|v| v.parse::<u32>().ok())
+            .unwrap_or(4096);
+
         // Global defaults: read from generic environment variables
         let default_provider = env::var("MAGI_PROVIDER")
             .or_else(|_| env::var("LLM_PROVIDER"))
@@ -114,6 +123,7 @@ impl MagiConfig {
             max_retries,
             retry_delay_ms,
             max_context_chars,
+            max_tokens,
         );
         let balthasar = Self::resolve_node_config(
             "BALTHASAR",
@@ -124,6 +134,7 @@ impl MagiConfig {
             max_retries,
             retry_delay_ms,
             max_context_chars,
+            max_tokens,
         );
         let casper = Self::resolve_node_config(
             "CASPER",
@@ -134,6 +145,7 @@ impl MagiConfig {
             max_retries,
             retry_delay_ms,
             max_context_chars,
+            max_tokens,
         );
 
         Ok(Self {
@@ -145,6 +157,7 @@ impl MagiConfig {
             retry_delay_ms,
             allow_degraded_quorum,
             max_context_chars,
+            max_tokens,
             melchior,
             balthasar,
             casper,
@@ -163,6 +176,7 @@ impl MagiConfig {
         max_retries: u32,
         retry_delay_ms: u64,
         max_context_chars: usize,
+        default_max_tokens: u32,
     ) -> NodeConfig {
         let prefix = module_prefix.to_uppercase();
 
@@ -180,6 +194,13 @@ impl MagiConfig {
         let api_key = env::var(format!("{}_API_KEY", prefix))
             .ok()
             .or_else(|| default_api_key.map(String::from));
+
+        let max_tokens = env::var(format!("{}_MAX_TOKENS", prefix))
+            .or_else(|_| env::var("MAGI_MAX_TOKENS"))
+            .or_else(|_| env::var("LLM_MAX_TOKENS"))
+            .ok()
+            .and_then(|v| v.parse::<u32>().ok())
+            .unwrap_or(default_max_tokens);
 
         let base_url = env::var(format!("{}_ENDPOINT", prefix))
             .or_else(|_| env::var(format!("{}_BASE_URL", prefix)))
@@ -204,6 +225,7 @@ impl MagiConfig {
             max_retries,
             retry_delay_ms,
             max_context_chars,
+            max_tokens,
         }
     }
 }
@@ -219,6 +241,7 @@ impl Default for MagiConfig {
             retry_delay_ms: 1000,
             allow_degraded_quorum: true,
             max_context_chars: 60_000,
+            max_tokens: 4096,
             melchior: NodeConfig {
                 provider: "mock".to_string(),
                 model: "mock-v1".to_string(),
@@ -227,6 +250,7 @@ impl Default for MagiConfig {
                 max_retries: 3,
                 retry_delay_ms: 1000,
                 max_context_chars: 60_000,
+                max_tokens: 4096,
             },
             balthasar: NodeConfig {
                 provider: "mock".to_string(),
@@ -236,6 +260,7 @@ impl Default for MagiConfig {
                 max_retries: 3,
                 retry_delay_ms: 1000,
                 max_context_chars: 60_000,
+                max_tokens: 4096,
             },
             casper: NodeConfig {
                 provider: "mock".to_string(),
@@ -245,6 +270,7 @@ impl Default for MagiConfig {
                 max_retries: 3,
                 retry_delay_ms: 1000,
                 max_context_chars: 60_000,
+                max_tokens: 4096,
             },
         }
     }
@@ -273,6 +299,7 @@ mod tests {
             3,
             1000,
             60_000,
+            4096,
         );
         assert_eq!(node.provider, "openai-compatible");
         assert_eq!(node.model, "qwen2.5-coder:7b");
@@ -280,6 +307,7 @@ mod tests {
         assert_eq!(node.max_retries, 3);
         assert_eq!(node.retry_delay_ms, 1000);
         assert_eq!(node.max_context_chars, 60_000);
+        assert_eq!(node.max_tokens, 4096);
 
         env::remove_var("MAGI_PROVIDER");
         env::remove_var("MAGI_MODEL");
@@ -301,6 +329,7 @@ mod tests {
             3,
             1000,
             60_000,
+            4096,
         );
         assert_eq!(node.model, "deepseek-r1");
         assert_eq!(node.base_url, "http://sec-cluster:8000/v1");
@@ -326,13 +355,36 @@ mod tests {
             3,
             1000,
             60_000,
+            4096,
         );
 
         assert_eq!(node.base_url, "https://openrouter.ai/api/v1");
         assert_eq!(node.model, "anthropic/claude-3.5-sonnet");
         assert_eq!(node.api_key.as_deref(), Some("sk-or-v1-melchior-test-key"));
+        assert_eq!(node.max_tokens, 4096);
 
         env::remove_var("TEST_OR_API_KEY");
         env::remove_var("TEST_OR_MODEL");
+    }
+
+    #[test]
+    fn test_max_tokens_override() {
+        let _guard = ENV_MUTEX.lock().unwrap();
+        env::set_var("CASPER_MAX_TOKENS", "8192");
+
+        let node = MagiConfig::resolve_node_config(
+            "CASPER",
+            "openai-compatible",
+            "default",
+            "http://localhost:11434/v1",
+            None,
+            3,
+            1000,
+            60_000,
+            4096,
+        );
+        assert_eq!(node.max_tokens, 8192);
+
+        env::remove_var("CASPER_MAX_TOKENS");
     }
 }

@@ -26,6 +26,7 @@ pub async fn dispatch_llm_request(
     max_retries: u32,
     initial_delay_ms: u64,
     max_context_chars: usize,
+    max_tokens: u32,
 ) -> Result<NodeEvaluation, MagiError> {
     let start_time = Instant::now();
 
@@ -66,7 +67,8 @@ pub async fn dispatch_llm_request(
                     { "role": "system", "content": system_prompt },
                     { "role": "user", "content": &prompt_format }
                 ],
-                "response_format": { "type": "json_object" }
+                "response_format": { "type": "json_object" },
+                "max_tokens": max_tokens
             })
         } else {
             json!({
@@ -74,7 +76,8 @@ pub async fn dispatch_llm_request(
                 "messages": [
                     { "role": "system", "content": system_prompt },
                     { "role": "user", "content": &prompt_format }
-                ]
+                ],
+                "max_tokens": max_tokens
             })
         };
 

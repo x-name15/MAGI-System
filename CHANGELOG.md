@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.2.5] - 2026-10-08 — Configurable Max Tokens, Truncation Recovery & CLI/MCP Robustness
+
+### Added
+- **Configurable LLM Generation Token Limits (`config::MagiConfig`, `config::NodeConfig`):**
+  - Added global `MAGI_MAX_TOKENS` configuration (default: `4096`) alongside node-specific overrides (`MELCHIOR_MAX_TOKENS`, `BALTHASAR_MAX_TOKENS`, `CASPER_MAX_TOKENS`).
+  - Passed explicit `max_tokens` parameter in all HTTP payloads dispatched via `llm::helpers::dispatch_helper`.
+  - Resolves token cutoff issues with reasoning/thinking models (e.g. Gemini 3.1 Flash Lite) where internal thinking tokens previously depleted low default completion token budgets.
+- **Resilient Truncation Recovery for LLM JSON Outputs (`llm::helpers::json_repair_helper`):**
+  - Enhanced `repair_json_text` with automated quote balancing and bracket/brace tracking (`{`, `[`, `}`, `]`).
+  - Gracefully recovers and closes cut-off or interrupted JSON streams, enabling fallback parsers to extract critical evaluation fields (`vote`, `risk_score`, `confidence`) without throwing parser EOF errors.
+- **Native `magi purge` Subcommand (`client/src/main`):**
+  - Added native CLI subcommand `magi purge [--hard] [--keep-files]` to wipe SpacetimeDB state and clean local Markdown archive reports.
+- **MCP Protocol Discovery & Ping Compatibility (`client/src/mcp/handler`):**
+  - Added dedicated handlers for `server/discover` and `ping` JSON-RPC methods to prevent `-32601` method not found errors when connected to IDE MCP clients.
+
+### Fixed
+- **PowerShell 5.1 Script Encoding Trap (`magi.ps1`):**
+  - Replaced non-ASCII Unicode glyphs (`✔`, `▶`) with standard ASCII equivalents (`[OK]`, `[>]`), preventing Windows-1252 ANSI encoding parse corruption and `ParseException: TerminatorExpectedAtEndOfString` errors on Windows PowerShell.
+  - Consolidated duplicate `purge`, `clear`, and `reset` logic into a single reusable handler with `Clear-LocalDeliberations`.
+
+---
+
 ## [0.2.4] - 2026-10-08 — Interactive History Explorer, Hybrid Archive Reader & Personal Scope Realignment
 
 ### Added

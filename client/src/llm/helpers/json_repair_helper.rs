@@ -27,7 +27,7 @@ pub fn repair_json_text(text: &str) -> String {
     // Normalize keys with leading dots e.g. {".vote": ...} -> {"vote": ...}
     let dot_normalized = combined.replace("\".", "\"");
     // Remove trailing commas before closing braces
-    dot_normalized
+    let cleaned_commas = dot_normalized
         .replace(",\n}", "\n}")
         .replace(",\r\n}", "\r\n}")
         .replace(",\n  }", "\n  }")
@@ -35,7 +35,65 @@ pub fn repair_json_text(text: &str) -> String {
         .replace(",\n    }", "\n    }")
         .replace(",\n]", "\n]")
         .replace(",\r\n]", "\r\n]")
-        .replace(",\n  ]", "\n  ]")
+        .replace(",\n  ]", "\n  ]");
+
+    // Balance quotes and close open brackets/braces if the completion was truncated
+    let mut balanced = cleaned_commas;
+    let mut in_string = false;
+    let mut escape = false;
+    let mut stack = Vec::new();
+
+    for ch in balanced.chars() {
+        if escape {
+            escape = false;
+            continue;
+        }
+        if ch == '\\' && in_string {
+            escape = true;
+            continue;
+        }
+        if ch == '"' {
+            in_string = !in_string;
+            continue;
+        }
+        if !in_string {
+            match ch {
+                '{' => stack.push('}'),
+                '[' => stack.push(']'),
+                '}' => {
+                    if let Some(&top) = stack.last() {
+                        if top == '}' {
+                            stack.pop();
+                        }
+                    }
+                }
+                ']' => {
+                    if let Some(&top) = stack.last() {
+                        if top == ']' {
+                            stack.pop();
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+
+    if in_string {
+        balanced.push('"');
+    }
+
+    // Strip trailing comma before closing if text ended with a dangling comma
+    let trimmed_end = balanced.trim_end();
+    if let Some(stripped) = trimmed_end.strip_suffix(',') {
+        balanced = stripped.to_string();
+    }
+
+    while let Some(closing) = stack.pop() {
+        balanced.push(closing);
+    }
+
+    balanced
 }
 
 #[cfg(test)]
@@ -54,5 +112,27 @@ mod tests {
         let input = "{\n  vote\": \"APPROVE\"\n}";
         let output = repair_json_text(input);
         assert!(output.contains("\"vote\": \"APPROVE\""));
+    }
+
+    #[test]
+    fn test_repair_truncated_json_unclosed_object() {
+        let input = "{\n  \"vote\": \"APPROVE\",\n  \"risk_score\": 2,\n  \"confidence\": 0.9";
+        let output = repair_json_text(input);
+        assert!(output.ends_with('}'));
+        let parsed: serde_json::Value = serde_json::from_str(&output).unwrap();
+        assert_eq!(parsed["vote"], "APPROVE");
+        assert_eq!(parsed["risk_score"], 2);
+    }
+
+    #[test]
+    fn test_repair_truncated_json_unclosed_string_and_array() {
+        let input =
+            "{\n  \"vote\": \"APPROVE\",\n  \"findings\": [\"race condition\", \"buffer over";
+        let output = repair_json_text(input);
+        assert!(output.ends_with("]}"));
+        let parsed: serde_json::Value = serde_json::from_str(&output).unwrap();
+        assert_eq!(parsed["vote"], "APPROVE");
+        assert_eq!(parsed["findings"][0], "race condition");
+        assert_eq!(parsed["findings"][1], "buffer over");
     }
 }
