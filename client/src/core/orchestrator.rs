@@ -405,15 +405,12 @@ impl MagiOrchestrator {
             // Verify quorum in Round 1
             let failures = (res_m.is_err() as u8) + (res_b.is_err() as u8) + (res_c.is_err() as u8);
             if failures > 1 || (failures > 0 && !self.config.allow_degraded_quorum) {
-                if let Err(e) = res_m {
-                    return Err(e);
-                }
-                if let Err(e) = res_b {
-                    return Err(e);
-                }
-                if let Err(e) = res_c {
-                    return Err(e);
-                }
+                let err = res_m
+                    .err()
+                    .or_else(|| res_b.err())
+                    .or_else(|| res_c.err())
+                    .unwrap();
+                return Err(err);
             }
 
             let eval_m = match res_m {

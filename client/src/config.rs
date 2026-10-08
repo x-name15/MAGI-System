@@ -153,6 +153,7 @@ impl MagiConfig {
 
     /// Resolves configuration for a specific MAGI persona node, checking node-specific
     /// variables first, then falling back to system defaults.
+    #[allow(clippy::too_many_arguments)]
     pub fn resolve_node_config(
         module_prefix: &str,
         default_provider: &str,
