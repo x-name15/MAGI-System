@@ -7,7 +7,7 @@
 
 use crate::config::NodeConfig;
 use crate::error::MagiError;
-use crate::llm::{dispatch_llm_request, LlmProvider, NodeEvaluation};
+use crate::llm::{dispatch_llm_request_with_fallback, LlmProvider, NodeEvaluation};
 use crate::skills::PromptLoader;
 use async_trait::async_trait;
 use reqwest::Client;
@@ -18,6 +18,7 @@ pub struct CasperNode {
     pub provider: String,
     pub base_url: String,
     pub model: String,
+    pub fallback_model: Option<String>,
     pub api_key: Option<String>,
     pub max_retries: u32,
     pub retry_delay_ms: u64,
@@ -34,6 +35,7 @@ impl CasperNode {
             provider: cfg.provider.clone(),
             base_url: cfg.base_url.clone(),
             model: cfg.model.clone(),
+            fallback_model: cfg.fallback_model.clone(),
             api_key: cfg.api_key.clone(),
             max_retries: cfg.max_retries,
             retry_delay_ms: cfg.retry_delay_ms,
@@ -59,12 +61,13 @@ impl LlmProvider for CasperNode {
             system_prompt.to_string()
         };
 
-        dispatch_llm_request(
+        dispatch_llm_request_with_fallback(
             &self.client,
             node_id,
             &self.provider,
             &self.base_url,
             &self.model,
+            self.fallback_model.as_deref(),
             self.api_key.as_deref(),
             &active_prompt,
             user_prompt,

@@ -301,6 +301,11 @@ impl McpHandler {
         verdict: &str,
         summary: &str,
     ) -> u64 {
+        // Skip persisting to disk and database when in mock/test mode
+        if self.force_mock {
+            return 0;
+        }
+
         let db_client = crate::db::SpacetimeClient::new(
             self.config.spacetimedb_uri.clone(),
             self.config.spacetimedb_database.clone(),

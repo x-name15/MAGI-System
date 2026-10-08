@@ -9,7 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.2.5] - 2026-10-08 — Configurable Max Tokens, Truncation Recovery & CLI/MCP Robustness
 
-### Added
+- **Contingency Backup Brain & Failover Model (`MAGI_FALLBACK_MODEL`, `llm::helpers::dispatch_helper`):**
+  - Added hot-standby failover support across all Trinity nodes (Melchior-1, Balthasar-2, Casper-3).
+  - When a node's primary model fails (e.g. out of API credits, HTTP 402, persistent 429 rate limits, or provider outages), the node transparently engages the configured fallback model (e.g. `cohere/north-mini-code:free`) without aborting or triggering degraded quorum.
+  - Emits descriptive console notification: `[{node_id}] Primary model ({model}) failed: {err}. Engaging backup circuit ({backup})...`.
+  - Tags resulting evaluation model as `<model> (backup)` in SpacetimeDB history and Markdown reports.
+  - Configurable globally via `MAGI_FALLBACK_MODEL` alongside node-specific overrides (`MELCHIOR_FALLBACK_MODEL`, `BALTHASAR_FALLBACK_MODEL`, `CASPER_FALLBACK_MODEL`).
 - **Configurable LLM Generation Token Limits (`config::MagiConfig`, `config::NodeConfig`):**
   - Added global `MAGI_MAX_TOKENS` configuration (default: `4096`) alongside node-specific overrides (`MELCHIOR_MAX_TOKENS`, `BALTHASAR_MAX_TOKENS`, `CASPER_MAX_TOKENS`).
   - Passed explicit `max_tokens` parameter in all HTTP payloads dispatched via `llm::helpers::dispatch_helper`.
@@ -23,6 +28,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added dedicated handlers for `server/discover` and `ping` JSON-RPC methods to prevent `-32601` method not found errors when connected to IDE MCP clients.
 
 ### Fixed
+- **Test & Mock Deliberation Host Leaks (`client/src/mcp/handler`, `client/src/main`, `client/src/ui/tui`):**
+  - Prevented mock executions (`--mock`, MCP mock handler, and test suite runs) from polluting the host `deliberations/` directory and SpacetimeDB database with spurious deliberation markdown files and records.
+  - Tests now run completely isolated without creating test markdown reports on disk.
 - **PowerShell 5.1 Script Encoding Trap (`magi.ps1`):**
   - Replaced non-ASCII Unicode glyphs (`✔`, `▶`) with standard ASCII equivalents (`[OK]`, `[>]`), preventing Windows-1252 ANSI encoding parse corruption and `ParseException: TerminatorExpectedAtEndOfString` errors on Windows PowerShell.
   - Consolidated duplicate `purge`, `clear`, and `reset` logic into a single reusable handler with `Clear-LocalDeliberations`.

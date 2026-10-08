@@ -13,7 +13,7 @@ pub mod mock;
 
 pub use balthasar::BalthasarNode;
 pub use casper::CasperNode;
-pub use helpers::dispatch_llm_request;
+pub use helpers::dispatch_llm_request_with_fallback;
 pub use melchior::MelchiorNode;
 
 use crate::error::MagiError;

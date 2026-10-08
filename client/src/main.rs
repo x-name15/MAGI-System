@@ -733,16 +733,18 @@ async fn dispatch_command(
                 }
             }
 
-            ui::save_host_deliberation_report(
-                deliberation_id,
-                &title,
-                "IDEA_PROPOSAL",
-                "MARKDOWN",
-                &eval_content,
-                &evaluations,
-                &consensus_result.0,
-                &consensus_result.1,
-            );
+            if !use_mock {
+                ui::save_host_deliberation_report(
+                    deliberation_id,
+                    &title,
+                    "IDEA_PROPOSAL",
+                    "MARKDOWN",
+                    &eval_content,
+                    &evaluations,
+                    &consensus_result.0,
+                    &consensus_result.1,
+                );
+            }
 
             Ok(consensus_result.0)
         }
@@ -856,16 +858,18 @@ async fn dispatch_command(
                 "CODE:\n{}\n\nGUIDELINES:\n{}",
                 code_content, guidelines_content
             );
-            ui::save_host_deliberation_report(
-                deliberation_id,
-                &title,
-                "CODE_MAINTENANCE",
-                "SOURCE_CODE",
-                &combined_context,
-                &evaluations,
-                &consensus_result.0,
-                &consensus_result.1,
-            );
+            if !use_mock {
+                ui::save_host_deliberation_report(
+                    deliberation_id,
+                    &title,
+                    "CODE_MAINTENANCE",
+                    "SOURCE_CODE",
+                    &combined_context,
+                    &evaluations,
+                    &consensus_result.0,
+                    &consensus_result.1,
+                );
+            }
 
             Ok(consensus_result.0)
         }
@@ -977,16 +981,18 @@ async fn dispatch_command(
                     }
                 }
 
-                ui::save_host_deliberation_report(
-                    deliberation_id,
-                    "Incident Triage - Trinity Deliberation",
-                    "ERROR_TRIAGE",
-                    "ERROR_LOG",
-                    &error_text,
-                    &trinity_evals,
-                    &consensus.0,
-                    &consensus.1,
-                );
+                if !use_mock {
+                    ui::save_host_deliberation_report(
+                        deliberation_id,
+                        "Incident Triage - Trinity Deliberation",
+                        "ERROR_TRIAGE",
+                        "ERROR_LOG",
+                        &error_text,
+                        &trinity_evals,
+                        &consensus.0,
+                        &consensus.1,
+                    );
+                }
 
                 Ok(consensus.0)
             } else {
@@ -1024,16 +1030,18 @@ async fn dispatch_command(
                     }
                 }
 
-                ui::save_host_deliberation_report(
-                    deliberation_id,
-                    "Incident Triage",
-                    "ERROR_TRIAGE",
-                    "ERROR_LOG",
-                    &error_text,
-                    &[eval],
-                    &v,
-                    &s,
-                );
+                if !use_mock {
+                    ui::save_host_deliberation_report(
+                        deliberation_id,
+                        "Incident Triage",
+                        "ERROR_TRIAGE",
+                        "ERROR_LOG",
+                        &error_text,
+                        &[eval],
+                        &v,
+                        &s,
+                    );
+                }
 
                 Ok(v)
             }
@@ -1170,16 +1178,18 @@ async fn dispatch_command(
                 }
             }
 
-            ui::save_host_deliberation_report(
-                deliberation_id,
-                &file_title,
-                "UNIVERSAL_AUDIT",
-                &context_type,
-                &eval_content,
-                &evaluations,
-                &consensus_result.0,
-                &consensus_result.1,
-            );
+            if !use_mock {
+                ui::save_host_deliberation_report(
+                    deliberation_id,
+                    &file_title,
+                    "UNIVERSAL_AUDIT",
+                    &context_type,
+                    &eval_content,
+                    &evaluations,
+                    &consensus_result.0,
+                    &consensus_result.1,
+                );
+            }
 
             Ok(consensus_result.0)
         }
@@ -1352,16 +1362,18 @@ async fn dispatch_command(
                 }
             }
 
-            ui::save_host_deliberation_report(
-                deliberation_id,
-                &title,
-                "GIT_DIFF_AUDIT",
-                "CODE_DIFF",
-                &diff_text,
-                &evaluations,
-                &consensus_result.0,
-                &consensus_result.1,
-            );
+            if !use_mock {
+                ui::save_host_deliberation_report(
+                    deliberation_id,
+                    &title,
+                    "GIT_DIFF_AUDIT",
+                    "CODE_DIFF",
+                    &diff_text,
+                    &evaluations,
+                    &consensus_result.0,
+                    &consensus_result.1,
+                );
+            }
 
             Ok(consensus_result.0)
         }
@@ -1476,16 +1488,18 @@ async fn dispatch_command(
                 }
             }
 
-            ui::save_host_deliberation_report(
-                deliberation_id,
-                &title,
-                "TECHNICAL_DEBATE",
-                "DILEMMA",
-                context_payload,
-                &evaluations,
-                &consensus_result.0,
-                &consensus_result.1,
-            );
+            if !use_mock {
+                ui::save_host_deliberation_report(
+                    deliberation_id,
+                    &title,
+                    "TECHNICAL_DEBATE",
+                    "DILEMMA",
+                    context_payload,
+                    &evaluations,
+                    &consensus_result.0,
+                    &consensus_result.1,
+                );
+            }
 
             Ok(consensus_result.0)
         }
@@ -1608,16 +1622,18 @@ async fn execute_inferred_intent_inner(
             let (verdict, summary) = resolve_consensus(&db_client, id, &evals).await;
             NervTheme::render_verdict(&verdict, &summary);
 
-            ui::save_host_deliberation_report(
-                id,
-                &title,
-                "IDEA_ASSESSMENT",
-                "MARKDOWN",
-                &content,
-                &evals,
-                &verdict,
-                &summary,
-            );
+            if !is_mock {
+                ui::save_host_deliberation_report(
+                    id,
+                    &title,
+                    "IDEA_ASSESSMENT",
+                    "MARKDOWN",
+                    &content,
+                    &evals,
+                    &verdict,
+                    &summary,
+                );
+            }
             Ok(verdict)
         }
 
@@ -1668,16 +1684,18 @@ async fn execute_inferred_intent_inner(
                 "CODE:\n{}\n\nGUIDELINES:\n{}",
                 code_content, guidelines_content
             );
-            ui::save_host_deliberation_report(
-                id,
-                &title,
-                "CODE_MAINTENANCE",
-                "SOURCE_CODE",
-                &combined,
-                &evals,
-                &verdict,
-                &summary,
-            );
+            if !is_mock {
+                ui::save_host_deliberation_report(
+                    id,
+                    &title,
+                    "CODE_MAINTENANCE",
+                    "SOURCE_CODE",
+                    &combined,
+                    &evals,
+                    &verdict,
+                    &summary,
+                );
+            }
             Ok(verdict)
         }
 
@@ -1720,16 +1738,18 @@ async fn execute_inferred_intent_inner(
                 let (verdict, summary) = resolve_consensus(&db_client, id, &trinity_evals).await;
                 NervTheme::render_verdict(&verdict, &summary);
 
-                ui::save_host_deliberation_report(
-                    id,
-                    "Incident Triage - Trinity Deliberation",
-                    "ERROR_TRIAGE",
-                    "ERROR_LOG",
-                    &error_text,
-                    &trinity_evals,
-                    &verdict,
-                    &summary,
-                );
+                if !is_mock {
+                    ui::save_host_deliberation_report(
+                        id,
+                        "Incident Triage - Trinity Deliberation",
+                        "ERROR_TRIAGE",
+                        "ERROR_LOG",
+                        &error_text,
+                        &trinity_evals,
+                        &verdict,
+                        &summary,
+                    );
+                }
                 Ok(verdict)
             } else {
                 db_client
@@ -1745,16 +1765,18 @@ async fn execute_inferred_intent_inner(
                     .await?;
                 let v = eval.vote.clone();
                 let s = eval.argument.clone();
-                ui::save_host_deliberation_report(
-                    id,
-                    "Incident Triage",
-                    "ERROR_TRIAGE",
-                    "ERROR_LOG",
-                    &error_text,
-                    &[eval],
-                    &v,
-                    &s,
-                );
+                if !is_mock {
+                    ui::save_host_deliberation_report(
+                        id,
+                        "Incident Triage",
+                        "ERROR_TRIAGE",
+                        "ERROR_LOG",
+                        &error_text,
+                        &[eval],
+                        &v,
+                        &s,
+                    );
+                }
                 Ok(v)
             }
         }
@@ -1788,16 +1810,18 @@ async fn execute_inferred_intent_inner(
             let (verdict, summary) = resolve_consensus(&db_client, id, &evals).await;
             NervTheme::render_verdict(&verdict, &summary);
 
-            ui::save_host_deliberation_report(
-                id,
-                "Universal Deliberation",
-                "UNIVERSAL",
-                &context_type,
-                &context_payload,
-                &evals,
-                &verdict,
-                &summary,
-            );
+            if !is_mock {
+                ui::save_host_deliberation_report(
+                    id,
+                    "Universal Deliberation",
+                    "UNIVERSAL",
+                    &context_type,
+                    &context_payload,
+                    &evals,
+                    &verdict,
+                    &summary,
+                );
+            }
             Ok(verdict)
         }
     }

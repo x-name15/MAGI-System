@@ -223,16 +223,18 @@ pub async fn run_interactive_session(
                         NervTheme::render_verdict(&verdict, &summary);
                         record_result(&mut transcript, &verdict, &summary, &evals);
 
-                        crate::ui::save_host_deliberation_report(
-                            id,
-                            &title,
-                            "IDEA_ASSESSMENT",
-                            "MARKDOWN",
-                            &content,
-                            &evals,
-                            &verdict,
-                            &summary,
-                        );
+                        if !is_mock {
+                            crate::ui::save_host_deliberation_report(
+                                id,
+                                &title,
+                                "IDEA_ASSESSMENT",
+                                "MARKDOWN",
+                                &content,
+                                &evals,
+                                &verdict,
+                                &summary,
+                            );
+                        }
                     }
 
                     InferredIntent::CodeMaintenance {
@@ -294,16 +296,18 @@ pub async fn run_interactive_session(
                             "CODE:\n{}\n\nGUIDELINES:\n{}",
                             code_content, guidelines_content
                         );
-                        crate::ui::save_host_deliberation_report(
-                            id,
-                            &title,
-                            "CODE_MAINTENANCE",
-                            "SOURCE_CODE",
-                            &combined,
-                            &evals,
-                            &verdict,
-                            &summary,
-                        );
+                        if !is_mock {
+                            crate::ui::save_host_deliberation_report(
+                                id,
+                                &title,
+                                "CODE_MAINTENANCE",
+                                "SOURCE_CODE",
+                                &combined,
+                                &evals,
+                                &verdict,
+                                &summary,
+                            );
+                        }
                     }
 
                     InferredIntent::ErrorTriage {
@@ -370,16 +374,18 @@ pub async fn run_interactive_session(
                             NervTheme::render_verdict(&verdict, &summary);
                             record_result(&mut transcript, &verdict, &summary, &trinity_evals);
 
-                            crate::ui::save_host_deliberation_report(
-                                id,
-                                "Incident Triage - Trinity Deliberation",
-                                "ERROR_TRIAGE",
-                                "ERROR_LOG",
-                                &error_text,
-                                &trinity_evals,
-                                &verdict,
-                                &summary,
-                            );
+                            if !is_mock {
+                                crate::ui::save_host_deliberation_report(
+                                    id,
+                                    "Incident Triage - Trinity Deliberation",
+                                    "ERROR_TRIAGE",
+                                    "ERROR_LOG",
+                                    &error_text,
+                                    &trinity_evals,
+                                    &verdict,
+                                    &summary,
+                                );
+                            }
                         } else {
                             db_client
                                 .submit_vote(
@@ -394,16 +400,18 @@ pub async fn run_interactive_session(
                                 .await?;
                             let v = eval.vote.clone();
                             let s = eval.argument.clone();
-                            crate::ui::save_host_deliberation_report(
-                                id,
-                                "Incident Triage",
-                                "ERROR_TRIAGE",
-                                "ERROR_LOG",
-                                &error_text,
-                                &[eval],
-                                &v,
-                                &s,
-                            );
+                            if !is_mock {
+                                crate::ui::save_host_deliberation_report(
+                                    id,
+                                    "Incident Triage",
+                                    "ERROR_TRIAGE",
+                                    "ERROR_LOG",
+                                    &error_text,
+                                    &[eval],
+                                    &v,
+                                    &s,
+                                );
+                            }
                         }
                     }
 
@@ -446,16 +454,18 @@ pub async fn run_interactive_session(
                         NervTheme::render_verdict(&verdict, &summary);
                         record_result(&mut transcript, &verdict, &summary, &evals);
 
-                        crate::ui::save_host_deliberation_report(
-                            id,
-                            "Universal Deliberation",
-                            "UNIVERSAL",
-                            &context_type,
-                            &context_payload,
-                            &evals,
-                            &verdict,
-                            &summary,
-                        );
+                        if !is_mock {
+                            crate::ui::save_host_deliberation_report(
+                                id,
+                                "Universal Deliberation",
+                                "UNIVERSAL",
+                                &context_type,
+                                &context_payload,
+                                &evals,
+                                &verdict,
+                                &summary,
+                            );
+                        }
                     }
                 }
 

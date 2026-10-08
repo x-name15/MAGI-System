@@ -237,3 +237,84 @@ pub async fn dispatch_llm_request(
         ),
     })
 }
+
+/// Dispatches an LLM evaluation with automatic failover to a contingency backup model
+/// if the primary model fails (e.g. out of API credits, persistent 429/5xx errors).
+#[allow(clippy::too_many_arguments)]
+pub async fn dispatch_llm_request_with_fallback(
+    client: &Client,
+    node_id: &str,
+    provider: &str,
+    base_url: &str,
+    model: &str,
+    fallback_model: Option<&str>,
+    api_key: Option<&str>,
+    system_prompt: &str,
+    user_prompt: &str,
+    context_payload: &str,
+    max_retries: u32,
+    initial_delay_ms: u64,
+    max_context_chars: usize,
+    max_tokens: u32,
+) -> Result<NodeEvaluation, MagiError> {
+    match dispatch_llm_request(
+        client,
+        node_id,
+        provider,
+        base_url,
+        model,
+        api_key,
+        system_prompt,
+        user_prompt,
+        context_payload,
+        max_retries,
+        initial_delay_ms,
+        max_context_chars,
+        max_tokens,
+    )
+    .await
+    {
+        Ok(eval) => Ok(eval),
+        Err(err) => {
+            if let Some(backup) = fallback_model {
+                let backup_clean = backup.trim();
+                if !backup_clean.is_empty() && backup_clean != model {
+                    eprintln!(
+                        "[{}] Primary model ({}) failed: {}. Engaging backup circuit ({})...",
+                        node_id, model, err, backup_clean
+                    );
+                    match dispatch_llm_request(
+                        client,
+                        node_id,
+                        provider,
+                        base_url,
+                        backup_clean,
+                        api_key,
+                        system_prompt,
+                        user_prompt,
+                        context_payload,
+                        max_retries,
+                        initial_delay_ms,
+                        max_context_chars,
+                        max_tokens,
+                    )
+                    .await
+                    {
+                        Ok(mut eval) => {
+                            eval.model = format!("{} (backup)", backup_clean);
+                            return Ok(eval);
+                        }
+                        Err(backup_err) => {
+                            eprintln!(
+                                "[{}] Backup circuit ({}) also failed: {}",
+                                node_id, backup_clean, backup_err
+                            );
+                            return Err(backup_err);
+                        }
+                    }
+                }
+            }
+            Err(err)
+        }
+    }
+}

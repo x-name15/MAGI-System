@@ -12,6 +12,7 @@ use std::env;
 pub struct NodeConfig {
     pub provider: String,
     pub model: String,
+    pub fallback_model: Option<String>,
     pub api_key: Option<String>,
     pub base_url: String,
     pub max_retries: u32,
@@ -33,6 +34,8 @@ pub struct MagiConfig {
     pub max_context_chars: usize,
     #[allow(dead_code)]
     pub max_tokens: u32,
+    #[allow(dead_code)]
+    pub fallback_model: Option<String>,
     pub melchior: NodeConfig,
     pub balthasar: NodeConfig,
     pub casper: NodeConfig,
@@ -96,6 +99,10 @@ impl MagiConfig {
             .or_else(|_| env::var("LLM_MODEL"))
             .unwrap_or_else(|_| "default".to_string());
 
+        let default_fallback_model = env::var("MAGI_FALLBACK_MODEL")
+            .or_else(|_| env::var("LLM_FALLBACK_MODEL"))
+            .ok();
+
         let default_endpoint = env::var("MAGI_ENDPOINT")
             .or_else(|_| env::var("LLM_ENDPOINT"))
             .or_else(|_| env::var("OPENROUTER_BASE_URL"))
@@ -118,6 +125,7 @@ impl MagiConfig {
             "MELCHIOR",
             &default_provider,
             &default_model,
+            default_fallback_model.as_deref(),
             &default_endpoint,
             default_api_key.as_deref(),
             max_retries,
@@ -129,6 +137,7 @@ impl MagiConfig {
             "BALTHASAR",
             &default_provider,
             &default_model,
+            default_fallback_model.as_deref(),
             &default_endpoint,
             default_api_key.as_deref(),
             max_retries,
@@ -140,6 +149,7 @@ impl MagiConfig {
             "CASPER",
             &default_provider,
             &default_model,
+            default_fallback_model.as_deref(),
             &default_endpoint,
             default_api_key.as_deref(),
             max_retries,
@@ -158,6 +168,7 @@ impl MagiConfig {
             allow_degraded_quorum,
             max_context_chars,
             max_tokens,
+            fallback_model: default_fallback_model,
             melchior,
             balthasar,
             casper,
@@ -171,6 +182,7 @@ impl MagiConfig {
         module_prefix: &str,
         default_provider: &str,
         default_model: &str,
+        default_fallback_model: Option<&str>,
         default_endpoint: &str,
         default_api_key: Option<&str>,
         max_retries: u32,
@@ -190,6 +202,10 @@ impl MagiConfig {
             .or_else(|_| env::var("MAGI_MODEL"))
             .or_else(|_| env::var("LLM_MODEL"))
             .unwrap_or_else(|_| default_model.to_string());
+
+        let fallback_model = env::var(format!("{}_FALLBACK_MODEL", prefix))
+            .ok()
+            .or_else(|| default_fallback_model.map(String::from));
 
         let api_key = env::var(format!("{}_API_KEY", prefix))
             .ok()
@@ -220,6 +236,7 @@ impl MagiConfig {
         NodeConfig {
             provider,
             model,
+            fallback_model,
             api_key,
             base_url,
             max_retries,
@@ -242,9 +259,11 @@ impl Default for MagiConfig {
             allow_degraded_quorum: true,
             max_context_chars: 60_000,
             max_tokens: 4096,
+            fallback_model: None,
             melchior: NodeConfig {
                 provider: "mock".to_string(),
                 model: "mock-v1".to_string(),
+                fallback_model: None,
                 api_key: None,
                 base_url: "http://127.0.0.1:0".to_string(),
                 max_retries: 3,
@@ -255,6 +274,7 @@ impl Default for MagiConfig {
             balthasar: NodeConfig {
                 provider: "mock".to_string(),
                 model: "mock-v1".to_string(),
+                fallback_model: None,
                 api_key: None,
                 base_url: "http://127.0.0.1:0".to_string(),
                 max_retries: 3,
@@ -265,6 +285,7 @@ impl Default for MagiConfig {
             casper: NodeConfig {
                 provider: "mock".to_string(),
                 model: "mock-v1".to_string(),
+                fallback_model: None,
                 api_key: None,
                 base_url: "http://127.0.0.1:0".to_string(),
                 max_retries: 3,
@@ -285,7 +306,7 @@ mod tests {
 
     #[test]
     fn test_agnostic_env_resolution() {
-        let _guard = ENV_MUTEX.lock().unwrap();
+        let _guard = ENV_MUTEX.lock().unwrap_or_else(|e| e.into_inner());
         env::set_var("MAGI_PROVIDER", "openai-compatible");
         env::set_var("MAGI_MODEL", "qwen2.5-coder:7b");
         env::set_var("MAGI_ENDPOINT", "http://localhost:8000/v1");
@@ -294,6 +315,7 @@ mod tests {
             "TEST_CUSTOM",
             "openai-compatible",
             "qwen2.5-coder:7b",
+            None,
             "http://localhost:8000/v1",
             None,
             3,
@@ -308,6 +330,7 @@ mod tests {
         assert_eq!(node.retry_delay_ms, 1000);
         assert_eq!(node.max_context_chars, 60_000);
         assert_eq!(node.max_tokens, 4096);
+        assert_eq!(node.fallback_model, None);
 
         env::remove_var("MAGI_PROVIDER");
         env::remove_var("MAGI_MODEL");
@@ -316,14 +339,15 @@ mod tests {
 
     #[test]
     fn test_node_specific_override() {
-        let _guard = ENV_MUTEX.lock().unwrap();
-        env::set_var("BALTHASAR_MODEL", "deepseek-r1");
-        env::set_var("BALTHASAR_ENDPOINT", "http://sec-cluster:8000/v1");
+        let _guard = ENV_MUTEX.lock().unwrap_or_else(|e| e.into_inner());
+        env::set_var("TEST_NODE_MODEL", "deepseek-r1");
+        env::set_var("TEST_NODE_ENDPOINT", "http://sec-cluster:8000/v1");
 
         let node = MagiConfig::resolve_node_config(
-            "BALTHASAR",
+            "TEST_NODE",
             "openai-compatible",
             "default",
+            None,
             "http://localhost:11434/v1",
             None,
             3,
@@ -334,13 +358,13 @@ mod tests {
         assert_eq!(node.model, "deepseek-r1");
         assert_eq!(node.base_url, "http://sec-cluster:8000/v1");
 
-        env::remove_var("BALTHASAR_MODEL");
-        env::remove_var("BALTHASAR_ENDPOINT");
+        env::remove_var("TEST_NODE_MODEL");
+        env::remove_var("TEST_NODE_ENDPOINT");
     }
 
     #[test]
     fn test_openrouter_auto_resolution() {
-        let _guard = ENV_MUTEX.lock().unwrap();
+        let _guard = ENV_MUTEX.lock().unwrap_or_else(|e| e.into_inner());
         env::remove_var("MAGI_ENDPOINT");
         env::remove_var("LLM_ENDPOINT");
         env::set_var("TEST_OR_API_KEY", "sk-or-v1-melchior-test-key");
@@ -350,6 +374,7 @@ mod tests {
             "TEST_OR",
             "openai-compatible",
             "default",
+            None,
             "http://localhost:11434/v1",
             None,
             3,
@@ -369,13 +394,14 @@ mod tests {
 
     #[test]
     fn test_max_tokens_override() {
-        let _guard = ENV_MUTEX.lock().unwrap();
-        env::set_var("CASPER_MAX_TOKENS", "8192");
+        let _guard = ENV_MUTEX.lock().unwrap_or_else(|e| e.into_inner());
+        env::set_var("TEST_MAXTOK_MAX_TOKENS", "8192");
 
         let node = MagiConfig::resolve_node_config(
-            "CASPER",
+            "TEST_MAXTOK",
             "openai-compatible",
             "default",
+            None,
             "http://localhost:11434/v1",
             None,
             3,
@@ -385,6 +411,53 @@ mod tests {
         );
         assert_eq!(node.max_tokens, 8192);
 
-        env::remove_var("CASPER_MAX_TOKENS");
+        env::remove_var("TEST_MAXTOK_MAX_TOKENS");
+    }
+
+    #[test]
+    fn test_fallback_model_resolution() {
+        let _guard = ENV_MUTEX.lock().unwrap_or_else(|e| e.into_inner());
+        env::set_var("MAGI_FALLBACK_MODEL", "cohere/north-mini-code:free");
+        env::set_var(
+            "TEST_FB_OVERRIDE_FALLBACK_MODEL",
+            "custom/fallback-specialized:free",
+        );
+
+        let melchior = MagiConfig::resolve_node_config(
+            "TEST_FB_OVERRIDE",
+            "openai-compatible",
+            "primary-model",
+            Some("cohere/north-mini-code:free"),
+            "http://localhost:11434/v1",
+            None,
+            3,
+            1000,
+            60_000,
+            4096,
+        );
+        assert_eq!(
+            melchior.fallback_model.as_deref(),
+            Some("custom/fallback-specialized:free")
+        );
+
+        let default_node = MagiConfig::resolve_node_config(
+            "TEST_FB_DEFAULT",
+            "openai-compatible",
+            "primary-model",
+            Some("cohere/north-mini-code:free"),
+            "http://localhost:11434/v1",
+            None,
+            3,
+            1000,
+            60_000,
+            4096,
+        );
+        assert_eq!(
+            default_node.fallback_model.as_deref(),
+            Some("cohere/north-mini-code:free")
+        );
+
+        env::remove_var("MAGI_FALLBACK_MODEL");
+        env::remove_var("TEST_FB_OVERRIDE_FALLBACK_MODEL");
     }
 }
