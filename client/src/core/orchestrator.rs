@@ -40,10 +40,25 @@ impl MagiOrchestrator {
                 Arc::new(MockProvider::for_node("Casper-3", false)),
             )
         } else {
+            let mut melchior_cfg = config.melchior.clone();
+            melchior_cfg.max_retries = config.max_retries;
+            melchior_cfg.retry_delay_ms = config.retry_delay_ms;
+            melchior_cfg.max_context_chars = config.max_context_chars;
+
+            let mut balthasar_cfg = config.balthasar.clone();
+            balthasar_cfg.max_retries = config.max_retries;
+            balthasar_cfg.retry_delay_ms = config.retry_delay_ms;
+            balthasar_cfg.max_context_chars = config.max_context_chars;
+
+            let mut casper_cfg = config.casper.clone();
+            casper_cfg.max_retries = config.max_retries;
+            casper_cfg.retry_delay_ms = config.retry_delay_ms;
+            casper_cfg.max_context_chars = config.max_context_chars;
+
             (
-                Arc::new(MelchiorNode::new(&config.melchior)),
-                Arc::new(BalthasarNode::new(&config.balthasar)),
-                Arc::new(CasperNode::new(&config.casper)),
+                Arc::new(MelchiorNode::new(&melchior_cfg)),
+                Arc::new(BalthasarNode::new(&balthasar_cfg)),
+                Arc::new(CasperNode::new(&casper_cfg)),
             )
         };
 
@@ -349,6 +364,34 @@ impl MagiOrchestrator {
         }
 
         let evaluation_future = async {
+            // Helper closure to construct a fallback evaluation for an offline node
+            let synthesize_degraded = |node_id: &str, error_msg: &str| -> NodeEvaluation {
+                let msg = format!(
+                    "[OFFLINE/DEGRADED QUORUM] Node failed to respond: {}",
+                    error_msg
+                );
+                NodeEvaluation {
+                    node_id: node_id.to_string(),
+                    vote: "NEUTRAL".to_string(),
+                    risk_score: 5,
+                    findings: Vec::new(),
+                    rationale: msg.clone(),
+                    argument: msg.clone(),
+                    confidence: 0.0,
+                    cwe_flags: Vec::new(),
+                    execution_time_ms: 0,
+                    prompt_version: "v1.0".to_string(),
+                    model: "offline".to_string(),
+                    initial_argument: Some(msg),
+                    initial_vote: Some("NEUTRAL".to_string()),
+                    initial_risk_score: Some(5),
+                }
+            };
+
+            let mut m_online = true;
+            let mut b_online = true;
+            let mut c_online = true;
+
             // Round 1: independent evaluations
             let (res_m, res_b, res_c) = tokio::join!(
                 self.melchior
@@ -359,7 +402,78 @@ impl MagiOrchestrator {
                     .evaluate("Casper-3", prompt_c, user_prompt, &effective_payload),
             );
 
-            let first_round = vec![res_m?, res_b?, res_c?];
+            // Verify quorum in Round 1
+            let failures = (res_m.is_err() as u8) + (res_b.is_err() as u8) + (res_c.is_err() as u8);
+            if failures > 1 || (failures > 0 && !self.config.allow_degraded_quorum) {
+                if let Err(e) = res_m {
+                    return Err(e);
+                }
+                if let Err(e) = res_b {
+                    return Err(e);
+                }
+                if let Err(e) = res_c {
+                    return Err(e);
+                }
+            }
+
+            let eval_m = match res_m {
+                Ok(ev) => ev,
+                Err(e) => {
+                    m_online = false;
+                    if !self.silent {
+                        eprintln!(
+                            "{}",
+                            format!(
+                                "  [!] [DEGRADED QUORUM] Node Melchior-1 is offline: {}. Proceeding with 2-of-3 quorum.",
+                                e
+                            )
+                            .bright_yellow()
+                            .bold()
+                        );
+                    }
+                    synthesize_degraded("Melchior-1", &e.to_string())
+                }
+            };
+
+            let eval_b = match res_b {
+                Ok(ev) => ev,
+                Err(e) => {
+                    b_online = false;
+                    if !self.silent {
+                        eprintln!(
+                            "{}",
+                            format!(
+                                "  [!] [DEGRADED QUORUM] Node Balthasar-2 is offline: {}. Proceeding with 2-of-3 quorum.",
+                                e
+                            )
+                            .bright_yellow()
+                            .bold()
+                        );
+                    }
+                    synthesize_degraded("Balthasar-2", &e.to_string())
+                }
+            };
+
+            let eval_c = match res_c {
+                Ok(ev) => ev,
+                Err(e) => {
+                    c_online = false;
+                    if !self.silent {
+                        eprintln!(
+                            "{}",
+                            format!(
+                                "  [!] [DEGRADED QUORUM] Node Casper-3 is offline: {}. Proceeding with 2-of-3 quorum.",
+                                e
+                            )
+                            .bright_yellow()
+                            .bold()
+                        );
+                    }
+                    synthesize_degraded("Casper-3", &e.to_string())
+                }
+            };
+
+            let first_round = vec![eval_m.clone(), eval_b.clone(), eval_c.clone()];
 
             // Intermediate rounds (2 .. effective_rounds - 1)
             let mut current_round = first_round.clone();
@@ -374,20 +488,120 @@ impl MagiOrchestrator {
                     effective_rounds,
                 );
 
-                let (r_m, r_b, r_c) = tokio::join!(
-                    self.melchior
-                        .evaluate("Melchior-1", prompt_m, &debate_prompt, &debate_context),
-                    self.balthasar.evaluate(
-                        "Balthasar-2",
-                        prompt_b,
-                        &debate_prompt,
-                        &debate_context
-                    ),
-                    self.casper
-                        .evaluate("Casper-3", prompt_c, &debate_prompt, &debate_context),
-                );
+                let fut_m = async {
+                    if m_online {
+                        Some(
+                            self.melchior
+                                .evaluate("Melchior-1", prompt_m, &debate_prompt, &debate_context)
+                                .await,
+                        )
+                    } else {
+                        None
+                    }
+                };
+                let fut_b = async {
+                    if b_online {
+                        Some(
+                            self.balthasar
+                                .evaluate("Balthasar-2", prompt_b, &debate_prompt, &debate_context)
+                                .await,
+                        )
+                    } else {
+                        None
+                    }
+                };
+                let fut_c = async {
+                    if c_online {
+                        Some(
+                            self.casper
+                                .evaluate("Casper-3", prompt_c, &debate_prompt, &debate_context)
+                                .await,
+                        )
+                    } else {
+                        None
+                    }
+                };
 
-                current_round = vec![r_m?, r_b?, r_c?];
+                let (r_m, r_b, r_c) = tokio::join!(fut_m, fut_b, fut_c);
+
+                let online_before = (m_online as u8) + (b_online as u8) + (c_online as u8);
+                let new_failures = r_m.as_ref().map_or(0, |r| r.is_err() as u8)
+                    + r_b.as_ref().map_or(0, |r| r.is_err() as u8)
+                    + r_c.as_ref().map_or(0, |r| r.is_err() as u8);
+                let online_after = online_before.saturating_sub(new_failures);
+
+                if online_after < 2 || (new_failures > 0 && !self.config.allow_degraded_quorum) {
+                    if let Some(Err(e)) = r_m {
+                        return Err(e);
+                    }
+                    if let Some(Err(e)) = r_b {
+                        return Err(e);
+                    }
+                    if let Some(Err(e)) = r_c {
+                        return Err(e);
+                    }
+                }
+
+                if let Some(res) = r_m {
+                    match res {
+                        Ok(ev) => current_round[0] = ev,
+                        Err(e) => {
+                            m_online = false;
+                            if !self.silent {
+                                eprintln!(
+                                    "{}",
+                                    format!(
+                                        "  [!] [DEGRADED QUORUM] Node Melchior-1 failed in round {}: {}. Proceeding with 2-of-3 quorum.",
+                                        round_num, e
+                                    )
+                                    .bright_yellow()
+                                    .bold()
+                                );
+                            }
+                            current_round[0] = synthesize_degraded("Melchior-1", &e.to_string());
+                        }
+                    }
+                }
+                if let Some(res) = r_b {
+                    match res {
+                        Ok(ev) => current_round[1] = ev,
+                        Err(e) => {
+                            b_online = false;
+                            if !self.silent {
+                                eprintln!(
+                                    "{}",
+                                    format!(
+                                        "  [!] [DEGRADED QUORUM] Node Balthasar-2 failed in round {}: {}. Proceeding with 2-of-3 quorum.",
+                                        round_num, e
+                                    )
+                                    .bright_yellow()
+                                    .bold()
+                                );
+                            }
+                            current_round[1] = synthesize_degraded("Balthasar-2", &e.to_string());
+                        }
+                    }
+                }
+                if let Some(res) = r_c {
+                    match res {
+                        Ok(ev) => current_round[2] = ev,
+                        Err(e) => {
+                            c_online = false;
+                            if !self.silent {
+                                eprintln!(
+                                    "{}",
+                                    format!(
+                                        "  [!] [DEGRADED QUORUM] Node Casper-3 failed in round {}: {}. Proceeding with 2-of-3 quorum.",
+                                        round_num, e
+                                    )
+                                    .bright_yellow()
+                                    .bold()
+                                );
+                            }
+                            current_round[2] = synthesize_degraded("Casper-3", &e.to_string());
+                        }
+                    }
+                }
             }
 
             // Final round (uses last intermediate as peer context)
@@ -401,16 +615,118 @@ impl MagiOrchestrator {
                 effective_rounds,
             );
 
-            let (final_m, final_b, final_c) = tokio::join!(
-                self.melchior
-                    .evaluate("Melchior-1", prompt_m, &final_prompt, &final_context),
-                self.balthasar
-                    .evaluate("Balthasar-2", prompt_b, &final_prompt, &final_context),
-                self.casper
-                    .evaluate("Casper-3", prompt_c, &final_prompt, &final_context),
-            );
+            let fut_final_m = async {
+                if m_online {
+                    Some(
+                        self.melchior
+                            .evaluate("Melchior-1", prompt_m, &final_prompt, &final_context)
+                            .await,
+                    )
+                } else {
+                    None
+                }
+            };
+            let fut_final_b = async {
+                if b_online {
+                    Some(
+                        self.balthasar
+                            .evaluate("Balthasar-2", prompt_b, &final_prompt, &final_context)
+                            .await,
+                    )
+                } else {
+                    None
+                }
+            };
+            let fut_final_c = async {
+                if c_online {
+                    Some(
+                        self.casper
+                            .evaluate("Casper-3", prompt_c, &final_prompt, &final_context)
+                            .await,
+                    )
+                } else {
+                    None
+                }
+            };
 
-            let mut final_evals = vec![final_m?, final_b?, final_c?];
+            let (final_m, final_b, final_c) = tokio::join!(fut_final_m, fut_final_b, fut_final_c);
+
+            let online_before = (m_online as u8) + (b_online as u8) + (c_online as u8);
+            let new_failures = final_m.as_ref().map_or(0, |r| r.is_err() as u8)
+                + final_b.as_ref().map_or(0, |r| r.is_err() as u8)
+                + final_c.as_ref().map_or(0, |r| r.is_err() as u8);
+            let online_after = online_before.saturating_sub(new_failures);
+
+            if online_after < 2 || (new_failures > 0 && !self.config.allow_degraded_quorum) {
+                if let Some(Err(e)) = final_m {
+                    return Err(e);
+                }
+                if let Some(Err(e)) = final_b {
+                    return Err(e);
+                }
+                if let Some(Err(e)) = final_c {
+                    return Err(e);
+                }
+            }
+
+            let mut final_evals = current_round.clone();
+            if let Some(res) = final_m {
+                match res {
+                    Ok(ev) => final_evals[0] = ev,
+                    Err(e) => {
+                        if !self.silent {
+                            eprintln!(
+                                "{}",
+                                format!(
+                                    "  [!] [DEGRADED QUORUM] Node Melchior-1 failed in final round: {}. Proceeding with 2-of-3 quorum.",
+                                    e
+                                )
+                                .bright_yellow()
+                                .bold()
+                            );
+                        }
+                        final_evals[0] = synthesize_degraded("Melchior-1", &e.to_string());
+                    }
+                }
+            }
+            if let Some(res) = final_b {
+                match res {
+                    Ok(ev) => final_evals[1] = ev,
+                    Err(e) => {
+                        if !self.silent {
+                            eprintln!(
+                                "{}",
+                                format!(
+                                    "  [!] [DEGRADED QUORUM] Node Balthasar-2 failed in final round: {}. Proceeding with 2-of-3 quorum.",
+                                    e
+                                )
+                                .bright_yellow()
+                                .bold()
+                            );
+                        }
+                        final_evals[1] = synthesize_degraded("Balthasar-2", &e.to_string());
+                    }
+                }
+            }
+            if let Some(res) = final_c {
+                match res {
+                    Ok(ev) => final_evals[2] = ev,
+                    Err(e) => {
+                        if !self.silent {
+                            eprintln!(
+                                "{}",
+                                format!(
+                                    "  [!] [DEGRADED QUORUM] Node Casper-3 failed in final round: {}. Proceeding with 2-of-3 quorum.",
+                                    e
+                                )
+                                .bright_yellow()
+                                .bold()
+                            );
+                        }
+                        final_evals[2] = synthesize_degraded("Casper-3", &e.to_string());
+                    }
+                }
+            }
 
             // Annotate with Round 1 positions for audit trail
             for evaluation in &mut final_evals {

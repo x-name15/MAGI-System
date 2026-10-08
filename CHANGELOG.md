@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.2.3] - 2026-10-08 — Degraded Quorum Resilience, Exponential Backoff Retries & Ingestion Safeguards
+
+### Added
+- **Fault-Tolerant Degraded Quorum (`core::orchestrator::deliberate_trinity`):**
+  - Added support for 2-of-3 majority consensus even when 1 node drops offline, encounters transport disconnects, or exhausts API credit/rate limits.
+  - Automatically synthesizes an explicit `[OFFLINE/DEGRADED QUORUM]` neutral position, proceeding across multi-round debates with remaining active nodes and issuing clear terminal diagnostic warnings without aborting deliberation.
+  - Controlled by `MAGI_ALLOW_DEGRADED_QUORUM` (default `true`). Deliberation strictly fails if 2 or more nodes are unreachable to protect consensus integrity.
+- **Smart Retries with Exponential Backoff & Jitter (`llm::helpers::dispatch_helper`):**
+  - Integrated automatic retry loop with exponential backoff (`delay * 2^attempt`) across transient HTTP errors (429 Rate Limits, 500, 502, 503, 504, connection resets).
+  - Dynamically parses `Retry-After` headers and extracts human-readable diagnostic messages from structured JSON error responses (e.g. OpenRouter daily quota exhaustion).
+  - Configurable via `MAGI_MAX_RETRIES` (default `3`) and `MAGI_RETRY_DELAY_MS` (default `1000`).
+- **Dynamic Schema Mode Fallback (`llm::helpers::dispatch_helper`):**
+  - Transparently recovers from HTTP 400 schema incompatibility errors when models do not support `response_format: json_object`, instantly re-dispatching in freeform Markdown text mode coupled with JSON repair.
+- **Smart Payload Budgeting & Context Safeguards (`llm::helpers::dispatch_helper`):**
+  - Safeguards LLM context limits against massive diffs or error logs with smart 60/40 head-tail preservation (`MAGI_MAX_CONTEXT_CHARS`, default `60000`).
+- **MCP Markdown Deliberation Archiving (`mcp::handler`):**
+  - Ensured all MCP tool deliberations automatically generate timestamped Markdown audit reports in `deliberations/` and persist records in SpacetimeDB history.
+
+---
+
 ## [0.2.2] - 2026-10-07 — Smart Ingestion, Noise Filtering & Automatic Context Discovery
 
 ### Added

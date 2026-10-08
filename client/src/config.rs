@@ -14,6 +14,9 @@ pub struct NodeConfig {
     pub model: String,
     pub api_key: Option<String>,
     pub base_url: String,
+    pub max_retries: u32,
+    pub retry_delay_ms: u64,
+    pub max_context_chars: usize,
 }
 
 /// Global system configuration loaded dynamically from environment or flags.
@@ -23,6 +26,10 @@ pub struct MagiConfig {
     pub spacetimedb_database: String,
     pub timeout_seconds: u64,
     pub author: String,
+    pub max_retries: u32,
+    pub retry_delay_ms: u64,
+    pub allow_degraded_quorum: bool,
+    pub max_context_chars: usize,
     pub melchior: NodeConfig,
     pub balthasar: NodeConfig,
     pub casper: NodeConfig,
@@ -50,6 +57,25 @@ impl MagiConfig {
             .or_else(|_| env::var("USER"))
             .or_else(|_| env::var("USERNAME"))
             .unwrap_or_else(|_| "developer@magi".to_string());
+
+        let max_retries = env::var("MAGI_MAX_RETRIES")
+            .ok()
+            .and_then(|v| v.parse::<u32>().ok())
+            .unwrap_or(3);
+
+        let retry_delay_ms = env::var("MAGI_RETRY_DELAY_MS")
+            .ok()
+            .and_then(|v| v.parse::<u64>().ok())
+            .unwrap_or(1000);
+
+        let allow_degraded_quorum = env::var("MAGI_ALLOW_DEGRADED_QUORUM")
+            .map(|v| v.to_lowercase() != "false" && v != "0")
+            .unwrap_or(true);
+
+        let max_context_chars = env::var("MAGI_MAX_CONTEXT_CHARS")
+            .ok()
+            .and_then(|v| v.parse::<usize>().ok())
+            .unwrap_or(60_000);
 
         // Global defaults: read from generic environment variables
         let default_provider = env::var("MAGI_PROVIDER")
@@ -85,6 +111,9 @@ impl MagiConfig {
             &default_model,
             &default_endpoint,
             default_api_key.as_deref(),
+            max_retries,
+            retry_delay_ms,
+            max_context_chars,
         );
         let balthasar = Self::resolve_node_config(
             "BALTHASAR",
@@ -92,6 +121,9 @@ impl MagiConfig {
             &default_model,
             &default_endpoint,
             default_api_key.as_deref(),
+            max_retries,
+            retry_delay_ms,
+            max_context_chars,
         );
         let casper = Self::resolve_node_config(
             "CASPER",
@@ -99,6 +131,9 @@ impl MagiConfig {
             &default_model,
             &default_endpoint,
             default_api_key.as_deref(),
+            max_retries,
+            retry_delay_ms,
+            max_context_chars,
         );
 
         Ok(Self {
@@ -106,6 +141,10 @@ impl MagiConfig {
             spacetimedb_database,
             timeout_seconds,
             author,
+            max_retries,
+            retry_delay_ms,
+            allow_degraded_quorum,
+            max_context_chars,
             melchior,
             balthasar,
             casper,
@@ -120,6 +159,9 @@ impl MagiConfig {
         default_model: &str,
         default_endpoint: &str,
         default_api_key: Option<&str>,
+        max_retries: u32,
+        retry_delay_ms: u64,
+        max_context_chars: usize,
     ) -> NodeConfig {
         let prefix = module_prefix.to_uppercase();
 
@@ -158,6 +200,9 @@ impl MagiConfig {
             model,
             api_key,
             base_url,
+            max_retries,
+            retry_delay_ms,
+            max_context_chars,
         }
     }
 }
@@ -169,23 +214,36 @@ impl Default for MagiConfig {
             spacetimedb_database: "magi-system".to_string(),
             timeout_seconds: 60,
             author: "developer@magi".to_string(),
+            max_retries: 3,
+            retry_delay_ms: 1000,
+            allow_degraded_quorum: true,
+            max_context_chars: 60_000,
             melchior: NodeConfig {
                 provider: "mock".to_string(),
                 model: "mock-v1".to_string(),
                 api_key: None,
                 base_url: "http://127.0.0.1:0".to_string(),
+                max_retries: 3,
+                retry_delay_ms: 1000,
+                max_context_chars: 60_000,
             },
             balthasar: NodeConfig {
                 provider: "mock".to_string(),
                 model: "mock-v1".to_string(),
                 api_key: None,
                 base_url: "http://127.0.0.1:0".to_string(),
+                max_retries: 3,
+                retry_delay_ms: 1000,
+                max_context_chars: 60_000,
             },
             casper: NodeConfig {
                 provider: "mock".to_string(),
                 model: "mock-v1".to_string(),
                 api_key: None,
                 base_url: "http://127.0.0.1:0".to_string(),
+                max_retries: 3,
+                retry_delay_ms: 1000,
+                max_context_chars: 60_000,
             },
         }
     }
@@ -207,10 +265,16 @@ mod tests {
             "qwen2.5-coder:7b",
             "http://localhost:8000/v1",
             None,
+            3,
+            1000,
+            60_000,
         );
         assert_eq!(node.provider, "openai-compatible");
         assert_eq!(node.model, "qwen2.5-coder:7b");
         assert_eq!(node.base_url, "http://localhost:8000/v1");
+        assert_eq!(node.max_retries, 3);
+        assert_eq!(node.retry_delay_ms, 1000);
+        assert_eq!(node.max_context_chars, 60_000);
 
         env::remove_var("MAGI_PROVIDER");
         env::remove_var("MAGI_MODEL");
@@ -228,6 +292,9 @@ mod tests {
             "default",
             "http://localhost:11434/v1",
             None,
+            3,
+            1000,
+            60_000,
         );
         assert_eq!(node.model, "deepseek-r1");
         assert_eq!(node.base_url, "http://sec-cluster:8000/v1");
@@ -247,6 +314,9 @@ mod tests {
             "default",
             "http://localhost:11434/v1",
             None,
+            3,
+            1000,
+            60_000,
         );
 
         assert_eq!(node.base_url, "https://openrouter.ai/api/v1");

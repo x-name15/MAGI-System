@@ -18,6 +18,9 @@ pub struct MelchiorNode {
     pub base_url: String,
     pub model: String,
     pub api_key: Option<String>,
+    pub max_retries: u32,
+    pub retry_delay_ms: u64,
+    pub max_context_chars: usize,
     prompt_loader: PromptLoader,
 }
 
@@ -30,6 +33,9 @@ impl MelchiorNode {
             base_url: cfg.base_url.clone(),
             model: cfg.model.clone(),
             api_key: cfg.api_key.clone(),
+            max_retries: cfg.max_retries,
+            retry_delay_ms: cfg.retry_delay_ms,
+            max_context_chars: cfg.max_context_chars,
             prompt_loader: PromptLoader::new(),
         }
     }
@@ -60,6 +66,9 @@ impl LlmProvider for MelchiorNode {
             &active_prompt,
             user_prompt,
             context_payload,
+            self.max_retries,
+            self.retry_delay_ms,
+            self.max_context_chars,
         )
         .await
     }
