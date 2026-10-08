@@ -253,9 +253,13 @@ impl Default for MagiConfig {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::Mutex;
+
+    static ENV_MUTEX: Mutex<()> = Mutex::new(());
 
     #[test]
     fn test_agnostic_env_resolution() {
+        let _guard = ENV_MUTEX.lock().unwrap();
         env::set_var("MAGI_PROVIDER", "openai-compatible");
         env::set_var("MAGI_MODEL", "qwen2.5-coder:7b");
         env::set_var("MAGI_ENDPOINT", "http://localhost:8000/v1");
@@ -284,6 +288,7 @@ mod tests {
 
     #[test]
     fn test_node_specific_override() {
+        let _guard = ENV_MUTEX.lock().unwrap();
         env::set_var("BALTHASAR_MODEL", "deepseek-r1");
         env::set_var("BALTHASAR_ENDPOINT", "http://sec-cluster:8000/v1");
 
@@ -306,6 +311,9 @@ mod tests {
 
     #[test]
     fn test_openrouter_auto_resolution() {
+        let _guard = ENV_MUTEX.lock().unwrap();
+        env::remove_var("MAGI_ENDPOINT");
+        env::remove_var("LLM_ENDPOINT");
         env::set_var("TEST_OR_API_KEY", "sk-or-v1-melchior-test-key");
         env::set_var("TEST_OR_MODEL", "anthropic/claude-3.5-sonnet");
 
