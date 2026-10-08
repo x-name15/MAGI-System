@@ -25,6 +25,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Enhanced `magi show` to query SpacetimeDB and automatically fall back to local disk archives if SpacetimeDB is unreachable or missing the requested deliberation ID.
 - **Interactive Console History Upgrade (`ui::tui`):**
   - Integrated `load_hybrid` into the `history` command within `magi console` for seamless history browsing.
+- **Comprehensive Consensus Regression Test Suite:**
+  - Expanded test coverage across client (`core::helpers::consensus_helper`) and SpacetimeDB server (`consensus_tests.rs`) to 64 passing tests.
+  - Formally validated edge cases including Casper's systematic dissent permitting majority approve (`2-1`), degraded quorum resolutions (`2-0-1`), full three-way split verdicts, Balthasar veto threshold isolation (risk >= 8 and CWE triggers vs sub-threshold rejections), non-veto high-risk approvals, and multi-language summary rendering.
 - **Roadmap Realignment (`docs/rfcs/ROADMAP.md`):**
   - Streamlined and focused roadmap strictly around MAGI System's primary role as a personal developer tool, prioritizing local ergonomics, zero friction, and robust developer workflows.
 

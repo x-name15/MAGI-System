@@ -202,3 +202,171 @@ fn test_unknown_node_cannot_become_consensus_member() {
     assert_eq!(neutrals, 0);
     assert!(!veto);
 }
+
+#[test]
+fn test_balthasar_high_risk_approve_does_not_veto() {
+    let votes = vec![
+        VoteRecord {
+            node_id: NODE_MELCHIOR.to_string(),
+            vote: VOTE_APPROVE.to_string(),
+            risk_score: 2,
+        },
+        VoteRecord {
+            node_id: NODE_BALTHASAR.to_string(),
+            vote: VOTE_APPROVE.to_string(),
+            risk_score: 9, // High risk, but voted APPROVE -> no veto
+        },
+        VoteRecord {
+            node_id: NODE_CASPER.to_string(),
+            vote: VOTE_APPROVE.to_string(),
+            risk_score: 1,
+        },
+    ];
+
+    let (verdict, approves, rejects, neutrals, veto) = calculate_verdict(&votes);
+    assert_eq!(verdict, VERDICT_APPROVED_UNANIMOUS);
+    assert_eq!(approves, 3);
+    assert_eq!(rejects, 0);
+    assert_eq!(neutrals, 0);
+    assert!(!veto);
+}
+
+#[test]
+fn test_degraded_quorum_two_approves_one_neutral() {
+    let votes = vec![
+        VoteRecord {
+            node_id: NODE_MELCHIOR.to_string(),
+            vote: VOTE_APPROVE.to_string(),
+            risk_score: 2,
+        },
+        VoteRecord {
+            node_id: NODE_BALTHASAR.to_string(),
+            vote: VOTE_APPROVE.to_string(),
+            risk_score: 3,
+        },
+        VoteRecord {
+            node_id: NODE_CASPER.to_string(),
+            vote: VOTE_NEUTRAL.to_string(),
+            risk_score: 0,
+        },
+    ];
+
+    let (verdict, approves, rejects, neutrals, veto) = calculate_verdict(&votes);
+    assert_eq!(verdict, VERDICT_APPROVED_MAJORITY);
+    assert_eq!(approves, 2);
+    assert_eq!(rejects, 0);
+    assert_eq!(neutrals, 1);
+    assert!(!veto);
+}
+
+#[test]
+fn test_degraded_quorum_two_rejects_one_neutral() {
+    let votes = vec![
+        VoteRecord {
+            node_id: NODE_MELCHIOR.to_string(),
+            vote: VOTE_REJECT.to_string(),
+            risk_score: 5,
+        },
+        VoteRecord {
+            node_id: NODE_BALTHASAR.to_string(),
+            vote: VOTE_REJECT.to_string(),
+            risk_score: 6,
+        },
+        VoteRecord {
+            node_id: NODE_CASPER.to_string(),
+            vote: VOTE_NEUTRAL.to_string(),
+            risk_score: 0,
+        },
+    ];
+
+    let (verdict, approves, rejects, neutrals, veto) = calculate_verdict(&votes);
+    assert_eq!(verdict, VERDICT_REJECTED_MAJORITY);
+    assert_eq!(approves, 0);
+    assert_eq!(rejects, 2);
+    assert_eq!(neutrals, 1);
+    assert!(!veto);
+}
+
+#[test]
+fn test_casper_systematic_dissent_allows_majority_approve() {
+    let votes = vec![
+        VoteRecord {
+            node_id: NODE_MELCHIOR.to_string(),
+            vote: VOTE_APPROVE.to_string(),
+            risk_score: 1,
+        },
+        VoteRecord {
+            node_id: NODE_BALTHASAR.to_string(),
+            vote: VOTE_APPROVE.to_string(),
+            risk_score: 2,
+        },
+        VoteRecord {
+            node_id: NODE_CASPER.to_string(),
+            vote: VOTE_REJECT.to_string(),
+            risk_score: 7,
+        },
+    ];
+
+    let (verdict, approves, rejects, neutrals, veto) = calculate_verdict(&votes);
+    assert_eq!(verdict, VERDICT_APPROVED_MAJORITY);
+    assert_eq!(approves, 2);
+    assert_eq!(rejects, 1);
+    assert_eq!(neutrals, 0);
+    assert!(!veto);
+}
+
+#[test]
+fn test_all_neutral_yields_split_decision() {
+    let votes = vec![
+        VoteRecord {
+            node_id: NODE_MELCHIOR.to_string(),
+            vote: VOTE_NEUTRAL.to_string(),
+            risk_score: 0,
+        },
+        VoteRecord {
+            node_id: NODE_BALTHASAR.to_string(),
+            vote: VOTE_NEUTRAL.to_string(),
+            risk_score: 0,
+        },
+        VoteRecord {
+            node_id: NODE_CASPER.to_string(),
+            vote: VOTE_NEUTRAL.to_string(),
+            risk_score: 0,
+        },
+    ];
+
+    let (verdict, approves, rejects, neutrals, veto) = calculate_verdict(&votes);
+    assert_eq!(verdict, VERDICT_SPLIT_DECISION);
+    assert_eq!(approves, 0);
+    assert_eq!(rejects, 0);
+    assert_eq!(neutrals, 3);
+    assert!(!veto);
+}
+
+#[test]
+fn test_melchior_high_risk_reject_cannot_trigger_veto() {
+    let votes = vec![
+        VoteRecord {
+            node_id: NODE_MELCHIOR.to_string(),
+            vote: VOTE_REJECT.to_string(),
+            risk_score: 10,
+        },
+        VoteRecord {
+            node_id: NODE_BALTHASAR.to_string(),
+            vote: VOTE_APPROVE.to_string(),
+            risk_score: 2,
+        },
+        VoteRecord {
+            node_id: NODE_CASPER.to_string(),
+            vote: VOTE_APPROVE.to_string(),
+            risk_score: 1,
+        },
+    ];
+
+    let (verdict, approves, rejects, neutrals, veto) = calculate_verdict(&votes);
+    assert_eq!(verdict, VERDICT_APPROVED_MAJORITY);
+    assert_eq!(approves, 2);
+    assert_eq!(rejects, 1);
+    assert_eq!(neutrals, 0);
+    assert!(!veto);
+}

@@ -176,4 +176,184 @@ mod tests {
         assert_eq!(outcome.simple_verdict, "REJECTED");
         assert!(!outcome.is_veto);
     }
+
+    #[test]
+    fn test_unanimous_reject() {
+        let evals = vec![
+            dummy_eval("Melchior-1", "REJECT", 6, vec![]),
+            dummy_eval("Balthasar-2", "REJECT", 7, vec![]), // <8, no CWE -> no veto
+            dummy_eval("Casper-3", "REJECT", 5, vec![]),
+        ];
+        let outcome = calculate_local_consensus(&evals, Language::En);
+        assert_eq!(outcome.verdict, "REJECTED_UNANIMOUS");
+        assert_eq!(outcome.simple_verdict, "REJECTED");
+        assert_eq!(outcome.rejects, 3);
+        assert_eq!(outcome.approves, 0);
+        assert!(!outcome.is_veto);
+    }
+
+    #[test]
+    fn test_casper_systematic_dissent_allows_majority_approve() {
+        // Melchior (logic) approves, Balthasar (security) approves, Casper (pragmatism) rejects
+        let evals = vec![
+            dummy_eval("Melchior-1", "APPROVE", 1, vec![]),
+            dummy_eval("Balthasar-2", "APPROVE", 2, vec![]),
+            dummy_eval("Casper-3", "REJECT", 7, vec![]),
+        ];
+        let outcome = calculate_local_consensus(&evals, Language::En);
+        assert_eq!(outcome.verdict, "APPROVED_MAJORITY");
+        assert_eq!(outcome.simple_verdict, "APPROVED");
+        assert_eq!(outcome.approves, 2);
+        assert_eq!(outcome.rejects, 1);
+        assert!(!outcome.is_veto);
+    }
+
+    #[test]
+    fn test_degraded_quorum_two_approves_one_offline() {
+        // 1 node offline / neutral position synthesized by degraded quorum
+        let evals = vec![
+            dummy_eval("Melchior-1", "APPROVE", 2, vec![]),
+            dummy_eval("Balthasar-2", "APPROVE", 1, vec![]),
+            dummy_eval("Casper-3", "NEUTRAL", 0, vec![]),
+        ];
+        let outcome = calculate_local_consensus(&evals, Language::En);
+        assert_eq!(outcome.verdict, "APPROVED_MAJORITY");
+        assert_eq!(outcome.simple_verdict, "APPROVED");
+        assert_eq!(outcome.approves, 2);
+        assert_eq!(outcome.neutrals, 1);
+        assert_eq!(outcome.rejects, 0);
+        assert!(!outcome.is_veto);
+    }
+
+    #[test]
+    fn test_degraded_quorum_two_rejects_one_offline() {
+        let evals = vec![
+            dummy_eval("Melchior-1", "REJECT", 5, vec![]),
+            dummy_eval("Balthasar-2", "REJECT", 6, vec![]),
+            dummy_eval("Casper-3", "NEUTRAL", 0, vec![]),
+        ];
+        let outcome = calculate_local_consensus(&evals, Language::En);
+        assert_eq!(outcome.verdict, "REJECTED_MAJORITY");
+        assert_eq!(outcome.simple_verdict, "REJECTED");
+        assert_eq!(outcome.rejects, 2);
+        assert_eq!(outcome.neutrals, 1);
+        assert_eq!(outcome.approves, 0);
+        assert!(!outcome.is_veto);
+    }
+
+    #[test]
+    fn test_split_decision_three_way() {
+        let evals = vec![
+            dummy_eval("Melchior-1", "APPROVE", 2, vec![]),
+            dummy_eval("Balthasar-2", "NEUTRAL", 4, vec![]),
+            dummy_eval("Casper-3", "REJECT", 5, vec![]),
+        ];
+        let outcome = calculate_local_consensus(&evals, Language::En);
+        assert_eq!(outcome.verdict, "SPLIT_DECISION");
+        assert_eq!(outcome.simple_verdict, "SPLIT");
+        assert_eq!(outcome.approves, 1);
+        assert_eq!(outcome.rejects, 1);
+        assert_eq!(outcome.neutrals, 1);
+        assert!(!outcome.is_veto);
+    }
+
+    #[test]
+    fn test_split_decision_all_neutral() {
+        let evals = vec![
+            dummy_eval("Melchior-1", "NEUTRAL", 0, vec![]),
+            dummy_eval("Balthasar-2", "NEUTRAL", 0, vec![]),
+            dummy_eval("Casper-3", "NEUTRAL", 0, vec![]),
+        ];
+        let outcome = calculate_local_consensus(&evals, Language::En);
+        assert_eq!(outcome.verdict, "SPLIT_DECISION");
+        assert_eq!(outcome.simple_verdict, "SPLIT");
+        assert_eq!(outcome.neutrals, 3);
+        assert_eq!(outcome.approves, 0);
+        assert_eq!(outcome.rejects, 0);
+    }
+
+    #[test]
+    fn test_balthasar_veto_high_risk_without_cwe() {
+        // Risk >= 8 triggers veto even if CWE list is empty
+        let evals = vec![
+            dummy_eval("Melchior-1", "APPROVE", 1, vec![]),
+            dummy_eval("Balthasar-2", "REJECT", 9, vec![]),
+            dummy_eval("Casper-3", "APPROVE", 1, vec![]),
+        ];
+        let outcome = calculate_local_consensus(&evals, Language::En);
+        assert_eq!(outcome.verdict, "VETO_BALTHASAR");
+        assert_eq!(outcome.simple_verdict, "REJECTED");
+        assert!(outcome.is_veto);
+    }
+
+    #[test]
+    fn test_balthasar_veto_cwe_with_low_risk() {
+        // CWE flag triggers veto even if risk score is low (< 8)
+        let evals = vec![
+            dummy_eval("Melchior-1", "APPROVE", 1, vec![]),
+            dummy_eval("Balthasar-2", "REJECT", 4, vec!["CWE-79"]),
+            dummy_eval("Casper-3", "APPROVE", 1, vec![]),
+        ];
+        let outcome = calculate_local_consensus(&evals, Language::En);
+        assert_eq!(outcome.verdict, "VETO_BALTHASAR");
+        assert_eq!(outcome.simple_verdict, "REJECTED");
+        assert!(outcome.is_veto);
+    }
+
+    #[test]
+    fn test_balthasar_reject_below_veto_threshold_no_cwe() {
+        // Risk 7 with no CWE does NOT trigger veto; regular majority prevails
+        let evals = vec![
+            dummy_eval("Melchior-1", "APPROVE", 2, vec![]),
+            dummy_eval("Balthasar-2", "REJECT", 7, vec![]),
+            dummy_eval("Casper-3", "APPROVE", 2, vec![]),
+        ];
+        let outcome = calculate_local_consensus(&evals, Language::En);
+        assert_eq!(outcome.verdict, "APPROVED_MAJORITY");
+        assert_eq!(outcome.simple_verdict, "APPROVED");
+        assert!(!outcome.is_veto);
+    }
+
+    #[test]
+    fn test_balthasar_high_risk_approve_does_not_veto() {
+        // Veto strictly requires a REJECT vote; high risk alone while voting APPROVE is not a veto
+        let evals = vec![
+            dummy_eval("Melchior-1", "APPROVE", 2, vec![]),
+            dummy_eval("Balthasar-2", "APPROVE", 9, vec![]),
+            dummy_eval("Casper-3", "APPROVE", 1, vec![]),
+        ];
+        let outcome = calculate_local_consensus(&evals, Language::En);
+        assert_eq!(outcome.verdict, "APPROVED_UNANIMOUS");
+        assert!(!outcome.is_veto);
+    }
+
+    #[test]
+    fn test_melchior_high_risk_reject_cannot_veto() {
+        // Only Balthasar-2 has veto authority; Melchior-1 with high risk and CWE cannot veto
+        let evals = vec![
+            dummy_eval("Melchior-1", "REJECT", 10, vec!["CWE-89"]),
+            dummy_eval("Balthasar-2", "APPROVE", 2, vec![]),
+            dummy_eval("Casper-3", "APPROVE", 2, vec![]),
+        ];
+        let outcome = calculate_local_consensus(&evals, Language::En);
+        assert_eq!(outcome.verdict, "APPROVED_MAJORITY");
+        assert_eq!(outcome.simple_verdict, "APPROVED");
+        assert!(!outcome.is_veto);
+    }
+
+    #[test]
+    fn test_consensus_spanish_i18n() {
+        let evals = vec![
+            dummy_eval("Melchior-1", "APPROVE", 1, vec![]),
+            dummy_eval("Balthasar-2", "REJECT", 8, vec!["CWE-89"]),
+            dummy_eval("Casper-3", "APPROVE", 1, vec![]),
+        ];
+        let outcome_en = calculate_local_consensus(&evals, Language::En);
+        let outcome_es = calculate_local_consensus(&evals, Language::Es);
+
+        assert_eq!(outcome_en.verdict, outcome_es.verdict);
+        assert_eq!(outcome_en.is_veto, outcome_es.is_veto);
+        assert_ne!(outcome_en.summary, outcome_es.summary);
+        assert!(outcome_es.summary.contains("Veto de seguridad activado"));
+    }
 }
