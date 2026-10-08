@@ -8,16 +8,56 @@
 use crate::i18n::{get_bundle, Language};
 use crate::llm::NodeEvaluation;
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
+
+/// Resolves the canonical `deliberations/` directory at the project root.
+///
+/// Prevents accidental creation of nested `client/deliberations/` when commands
+/// are invoked from within the client subfolder.
+pub fn get_deliberations_dir() -> PathBuf {
+    if let Ok(custom) = std::env::var("MAGI_DELIBERATIONS_DIR") {
+        let p = PathBuf::from(custom);
+        if !p.as_os_str().is_empty() {
+            return p;
+        }
+    }
+
+    if let Ok(current) = std::env::current_dir() {
+        let mut candidate = current.as_path();
+
+        // If current dir is named "client", immediately step up to its parent
+        if candidate.file_name().and_then(|n| n.to_str()) == Some("client") {
+            if let Some(parent) = candidate.parent() {
+                candidate = parent;
+            }
+        }
+
+        loop {
+            if candidate.join("docker-compose.yml").exists()
+                || candidate.join("magi.ps1").exists()
+                || candidate.join(".git").exists()
+            {
+                return candidate.join("deliberations");
+            }
+
+            match candidate.parent() {
+                Some(parent) => candidate = parent,
+                None => break,
+            }
+        }
+    }
+
+    PathBuf::from("deliberations")
+}
 
 /// Returns the next sequential deliberation ID based on files in `deliberations/`.
 pub fn get_next_local_deliberation_id() -> u64 {
-    let dir = Path::new("deliberations");
+    let dir = get_deliberations_dir();
     if !dir.exists() {
         return 1;
     }
     let mut max_id = 0u64;
-    if let Ok(entries) = fs::read_dir(dir) {
+    if let Ok(entries) = fs::read_dir(&dir) {
         for entry in entries.flatten() {
             let filename = entry.file_name().to_string_lossy().to_string();
             if filename.starts_with("deliberation_") && filename.ends_with(".md") {
@@ -48,9 +88,9 @@ pub fn save_host_deliberation_report_opts(
     summary: &str,
     silent: bool,
 ) -> (u64, PathBuf) {
-    let dir = Path::new("deliberations");
+    let dir = get_deliberations_dir();
     if !dir.exists() {
-        let _ = fs::create_dir_all(dir);
+        let _ = fs::create_dir_all(&dir);
     }
 
     let effective_id = if deliberation_id == 0 {
@@ -244,4 +284,21 @@ pub fn save_host_deliberation_report(
         summary,
         false,
     );
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_get_deliberations_dir_resolves_root() {
+        let dir = get_deliberations_dir();
+        assert!(dir.ends_with("deliberations"));
+        let normalized = dir.to_string_lossy().replace('\\', "/");
+        assert!(
+            !normalized.ends_with("client/deliberations"),
+            "deliberations directory must never be nested inside client/, got: {}",
+            normalized
+        );
+    }
 }

@@ -24,6 +24,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Safeguards LLM context limits against massive diffs or error logs with smart 60/40 head-tail preservation (`MAGI_MAX_CONTEXT_CHARS`, default `60000`).
 - **MCP Markdown Deliberation Archiving (`mcp::handler`):**
   - Ensured all MCP tool deliberations automatically generate timestamped Markdown audit reports in `deliberations/` and persist records in SpacetimeDB history.
+- **Root Deliberations Directory Resolution (`ui::report::get_deliberations_dir`):**
+  - Dynamically resolves the project/workspace root markers (`docker-compose.yml`, `magi.ps1`, or `.git`) to ensure reports are strictly saved in the root `deliberations/` folder, preventing accidental creation of nested `client/deliberations/` directories.
 
 ---
 
