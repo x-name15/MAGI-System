@@ -273,6 +273,13 @@ enum Commands {
         id: u64,
     },
 
+    /// Purge deliberation records from local archive
+    Purge {
+        /// Keep markdown reports in deliberations/ directory
+        #[arg(long)]
+        keep_files: bool,
+    },
+
     /// Case 4: Audit repository git diff (uncommitted, staged, or against a target branch)
     Diff {
         /// Audit only staged changes (`git diff --staged`)
@@ -590,6 +597,45 @@ async fn dispatch_command(
             }
 
             Ok("NEUTRAL".to_string())
+        }
+
+        Commands::Purge { keep_files } => {
+            NervTheme::print_banner();
+            println!(
+                "{}",
+                "MAGI ARCHIVE PURGE // RECLAIMING STATE & MEMORY"
+                    .bright_yellow()
+                    .bold()
+            );
+
+            if !keep_files {
+                let delib_dir = crate::ui::report::get_deliberations_dir();
+                if delib_dir.exists() {
+                    let mut count = 0;
+                    if let Ok(entries) = fs::read_dir(&delib_dir) {
+                        for entry in entries.flatten() {
+                            let path = entry.path();
+                            if path.extension().and_then(|e| e.to_str()) == Some("md") {
+                                if let Ok(()) = fs::remove_file(path) {
+                                    count += 1;
+                                }
+                            }
+                        }
+                    }
+                    println!(
+                        "  [*] Purged {} local markdown report(s) from {}",
+                        count,
+                        delib_dir.display()
+                    );
+                }
+            }
+
+            println!("  [*] Notice: to fully drop and re-publish the SpacetimeDB database module, run '.\\magi.ps1 purge'.");
+            println!(
+                "{}",
+                "✔ Local deliberation archive successfully purged!".bright_green()
+            );
+            Ok("APPROVED".to_string())
         }
 
         // =====================================================================

@@ -58,6 +58,16 @@ impl McpHandler {
                 None
             }
 
+            "server/discover" => {
+                let id = id.unwrap_or(json!(1));
+                Some(JsonRpcResponse::success(id, json!({})))
+            }
+
+            "ping" => {
+                let id = id.unwrap_or(json!(1));
+                Some(JsonRpcResponse::success(id, json!({})))
+            }
+
             "tools/list" => {
                 let id = id.unwrap_or(json!(1));
                 let tools = vec![
