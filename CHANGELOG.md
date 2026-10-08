@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.2.4] - 2026-10-08 — Interactive History Explorer, Hybrid Archive Reader & Personal Scope Realignment
+
+### Added
+- **Hybrid Deliberation Archive Reader (`ui::helpers::history_loader`):**
+  - Unified archive reader that merges records from both local disk reports (`deliberations/deliberation_*.md`) and SpacetimeDB in-memory tables.
+  - Guarantees full audit history accessibility and searchability even when SpacetimeDB is offline, uninitialized, or wiped.
+  - Robust Markdown parser (`parse_deliberation_markdown`) extracting structured metadata (title, category, context type, consensus verdict, summary, and individual node votes/evaluations) across both English and Spanish report templates.
+- **Interactive Dual-Pane TUI History Browser (`ui::history_browser`):**
+  - Full-screen interactive terminal browser powered by Ratatui and Crossterm, launched automatically by `magi history` when stdout is a TTY.
+  - Dual-pane layout featuring a scrollable deliberation list with color-coded verdict badges (`APPROVED (3-0)`, `REJECTED (2-1)`, `VETO`, `SPLIT`), detailed Trinity node breakdowns (Melchior, Balthasar, Casper arguments and risk scores), and live query filtering (`/`).
+  - Modal full-report reader (`Enter` / `Space`) allowing complete in-terminal inspection of deliberation Markdown reports with scroll controls.
+- **Non-Interactive Table & Piped Output Support (`ui::history_browser::render_history_table`):**
+  - Instant ANSI table rendering when stdout is piped (`magi history | grep ...`) or when requested explicitly via `magi history --table`.
+  - Added optional search query flag (`magi history -q <filter>` / `magi history --query <filter>`).
+- **Resilient Fallback for Deliberation Inspection (`magi show <id>`):**
+  - Enhanced `magi show` to query SpacetimeDB and automatically fall back to local disk archives if SpacetimeDB is unreachable or missing the requested deliberation ID.
+- **Interactive Console History Upgrade (`ui::tui`):**
+  - Integrated `load_hybrid` into the `history` command within `magi console` for seamless history browsing.
+- **Roadmap Realignment (`docs/rfcs/ROADMAP.md`):**
+  - Streamlined and focused roadmap strictly around MAGI System's primary role as a personal developer tool, prioritizing local ergonomics, zero friction, and robust developer workflows.
+
+---
+
 ## [0.2.3] - 2026-10-08 — Degraded Quorum Resilience, Exponential Backoff Retries & Ingestion Safeguards
 
 ### Added

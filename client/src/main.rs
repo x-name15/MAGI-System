@@ -26,6 +26,7 @@ use db::SpacetimeClient;
 use error::MagiError;
 use skills::PromptLoader;
 use std::fs;
+use std::io::IsTerminal;
 use std::path::PathBuf;
 use std::time::Duration;
 use ui::NervTheme;
@@ -250,11 +251,19 @@ enum Commands {
         casper_model: Option<String>,
     },
 
-    /// View deliberation history stored in SpacetimeDB
+    /// View deliberation history stored in SpacetimeDB and local archive
     History {
         /// Maximum number of records to retrieve
-        #[arg(short, long, default_value_t = 20)]
+        #[arg(short, long, default_value_t = 50)]
         limit: usize,
+
+        /// Render as static ANSI table without opening the interactive TUI browser
+        #[arg(long)]
+        table: bool,
+
+        /// Search query to pre-filter deliberations by keyword
+        #[arg(short, long)]
+        query: Option<String>,
     },
 
     /// View detailed deliberation record and node debate by ID
@@ -462,21 +471,48 @@ async fn dispatch_command(
             Ok("APPROVED".to_string())
         }
 
-        Commands::History { limit } => {
-            NervTheme::print_banner();
+        Commands::History {
+            limit,
+            table,
+            query,
+        } => {
             let db_client = SpacetimeClient::new(
                 config.spacetimedb_uri.clone(),
                 config.spacetimedb_database.clone(),
             );
-            match db_client.list_history(limit).await {
-                Ok(records) => {
-                    println!(
-                        "PAST DELIBERATIONS RECORDED IN SPACETIMEDB (Top {}):",
-                        limit
-                    );
-                    NervTheme::render_history(&records);
-                }
-                Err(e) => eprintln!("Error fetching history: {}", e),
+            let deliberations_dir = crate::ui::report::get_deliberations_dir();
+            let records = crate::ui::helpers::history_loader::load_hybrid(
+                Some(&db_client),
+                &deliberations_dir,
+                limit,
+            )
+            .await;
+
+            let is_interactive = !table && std::io::stdout().is_terminal();
+
+            if is_interactive {
+                crate::ui::run_history_browser(&records, query.as_deref())
+                    .map_err(|e| MagiError::Internal(e.to_string()))?;
+            } else {
+                NervTheme::print_banner();
+                println!(
+                    "MAGI ARCHIVE // DELIBERATION HISTORY ({} records loaded):",
+                    records.len()
+                );
+                let filtered = if let Some(ref q) = query {
+                    let q_lower = q.to_lowercase();
+                    records
+                        .into_iter()
+                        .filter(|r| {
+                            r.title.to_lowercase().contains(&q_lower)
+                                || r.verdict.to_lowercase().contains(&q_lower)
+                                || r.category.to_lowercase().contains(&q_lower)
+                        })
+                        .collect()
+                } else {
+                    records
+                };
+                crate::ui::render_history_table(&filtered);
             }
             Ok("APPROVED".to_string())
         }
@@ -487,8 +523,12 @@ async fn dispatch_command(
                 config.spacetimedb_uri.clone(),
                 config.spacetimedb_database.clone(),
             );
+
+            // 1. Try SpacetimeDB first
+            let mut db_found = false;
             match db_client.get_deliberation_details(id).await {
                 Ok(Some((delib, evals, consensus))) => {
+                    db_found = true;
                     NervTheme::print_deliberation_header(delib.id, &delib.title, &delib.author);
                     println!("PROMPT: {}", delib.prompt);
                     println!("CONTEXT TYPE: {}", delib.context_type);
@@ -501,9 +541,54 @@ async fn dispatch_command(
                         return Ok(c.verdict);
                     }
                 }
-                Ok(None) => println!("Deliberation #{} not found in SpacetimeDB.", id),
-                Err(e) => eprintln!("Error fetching deliberation details: {}", e),
+                Ok(None) => {}
+                Err(_) => {
+                    eprintln!("Notice: SpacetimeDB unreachable, searching local archive...");
+                }
             }
+
+            // 2. Fallback to local deliberations/ directory
+            if !db_found {
+                let deliberations_dir = crate::ui::report::get_deliberations_dir();
+                let disk_records =
+                    crate::ui::helpers::history_loader::load_from_disk(&deliberations_dir);
+                if let Some(entry) = disk_records.into_iter().find(|e| e.id == id) {
+                    println!(
+                        "{}",
+                        format!(
+                            "  [*] [MAGI ARCHIVE RECORD: CASE #{:04}] {}",
+                            entry.id, entry.title
+                        )
+                        .bright_yellow()
+                        .bold()
+                    );
+                    println!("  CATEGORY: {}", entry.category);
+                    println!("  CONTEXT TYPE: {}", entry.context_type);
+                    println!("  STATUS: {}", entry.status);
+                    if let Some(ref path) = entry.file_path {
+                        println!("  REPORT FILE: {}", path.display());
+                    }
+                    println!();
+                    if !entry.node_votes.is_empty() {
+                        println!("  THE TRINITY VOTES & POSITIONS:");
+                        for n in &entry.node_votes {
+                            println!(
+                                "    • {:<12} : [{}] (Risk: {}/10) - {}",
+                                n.node_id, n.vote, n.risk_score, n.argument
+                            );
+                        }
+                        println!();
+                    }
+                    NervTheme::render_verdict(&entry.verdict, &entry.summary);
+                    return Ok(entry.verdict);
+                } else {
+                    println!(
+                        "Deliberation #{} not found in SpacetimeDB or local archive.",
+                        id
+                    );
+                }
+            }
+
             Ok("NEUTRAL".to_string())
         }
 
@@ -1432,8 +1517,14 @@ async fn execute_inferred_intent_inner(
             }
             "history" => {
                 NervTheme::print_banner();
-                let records = db_client.list_history(20).await?;
-                NervTheme::render_history(&records);
+                let deliberations_dir = crate::ui::report::get_deliberations_dir();
+                let records = crate::ui::helpers::history_loader::load_hybrid(
+                    Some(&db_client),
+                    &deliberations_dir,
+                    20,
+                )
+                .await;
+                crate::ui::render_history_table(&records);
                 Ok("APPROVED".to_string())
             }
             _ => {

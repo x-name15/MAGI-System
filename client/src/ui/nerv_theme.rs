@@ -719,6 +719,7 @@ impl NervTheme {
     }
 
     /// Renders the deliberation history.
+    #[allow(dead_code)]
     pub fn render_history(deliberations: &[crate::db::client::DeliberationRecord]) {
         Self::section("MAGI ARCHIVE / DELIBERATION HISTORY");
         let mut table = Table::new();

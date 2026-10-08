@@ -1,59 +1,47 @@
-# MAGI System — Project Roadmap 
+# MAGI System — Project Roadmap & Status
 
-This roadmap defines the engineering milestones for MAGI System, focusing strictly on its identity as a **high-reliability, local-first developer tool for terminal code auditing and architectural consensus**.
+MAGI System is a **personal developer tool and tactical AI consensus companion** inspired by the Supercomputer from Neon Genesis Evangelion. It operates as an asynchronous multi-agent code auditor and architectural referee for local pair programming and autonomous IDE workflows.
 
 ---
 
-## Version Map
+## Current Status & Evolution
 
 | Version | Status | Focus | Core Deliverables |
 | :--- | :--- | :--- | :--- |
-| **0.2.2** | **Current** | Smart Ingestion & Context Discovery | Automatic project context discovery (`Cargo.toml`, `package.json`, `go.mod`, `pyproject.toml`), smart noise/lockfile filtering in diffs, and integration with `lineamientos-pw`. |
-| **0.2.1** | **Completed** | Git Diff Auditing, Dilemma Debates & Expanded MCP Suite | `magi diff` (working tree, staged, branch), `magi debate` (architectural dilemmas), and 5 specialized MCP tools (`deliberate_with_magi`, `audit_git_changes`, `triage_incident_with_magi`, `check_security_veto`, `debate_technical_dilemma`). |
-| **0.2.0** | **Completed** | Modular Helpers, Deep Deliberation & MCP Integration | Helper separation (`core/helpers`, `llm/helpers`, `ui/helpers`), Model Context Protocol (`magi mcp` over stdio), pure local consensus engine, `--rounds N` deep debate, semantic exit codes (0/1/2/3), `--output json`, and 100% dynamic i18n localization. |
-| **0.3.0** | **Next** | Interactive Reports & Visual Export | Standalone diegetic NERV HTML audit report export (`--export html`), interactive TUI history log browser, and token streaming. |
-| **1.0.0** | **Target** | Production & Distribution | Standalone precompiled binaries (Windows/Linux/macOS), offline local Ollama profiles, and multi-model benchmark suite. |
+| **0.2.4** | **In Progress** | Interactive History Explorer & Hybrid Archive | Unified SpacetimeDB + disk reader for `deliberations/`, interactive Ratatui history browser (`magi history`), and hybrid `magi show <id>`. |
+| **0.2.3** | **Completed** | Resilience, Degraded Quorum & Root Archiving | Fault-tolerant 2-of-3 quorum, exponential backoff retries (anti-429), context budgeting safeguards, and canonical root `deliberations/` persistence. |
+| **0.2.2** | **Completed** | Smart Ingestion & Context Discovery | Automatic project context discovery (`Cargo.toml`, `package.json`, `go.mod`, `pyproject.toml`), smart noise/lockfile filtering in diffs, and integration with `lineamientos-pw`. |
+| **0.2.1** | **Completed** | Git Diff Auditing, Dilemma Debates & Expanded MCP Suite | `magi diff` (working tree, staged, branch), `magi debate` (architectural dilemmas), and 5 specialized MCP tools. |
+| **0.2.0** | **Completed** | Modular Helpers, Deep Deliberation & MCP Integration | Helper separation, Model Context Protocol (`magi mcp` over stdio), pure local consensus engine, multi-round debates, and i18n localization. |
 
 ---
 
 ## 📦 Milestone Breakdown
 
-### 🔹 0.2.2 — Smart Ingestion, Noise Filtering & Context Discovery (Current)
-* [x] **Automatic Project Context Discovery:** Deep recursive inspection of workspace manifests (`Cargo.toml` edition/workspaces, `package.json` TypeScript/frameworks, `go.mod`, `pyproject.toml`) automatically contextualizing Trinity evaluations.
-* [x] **Smart Token & Noise Filtering:** Automated filtering of lockfiles (`Cargo.lock`, `package-lock.json`, `pnpm-lock.yaml`, `go.sum`), minified assets, bundles, and build directories (`target/`, `dist/`, `node_modules/`) from diff payloads.
-* [x] **CLI & MCP Context Ingestion:** Integrated discovery telemetry banners across `magi diff`, `maintain`, `audit`, and `debate`, plus markdown summary annotations in MCP `audit_git_changes`.
+### 🔹 0.2.4 — Interactive History Explorer & Hybrid Archive (Active)
+* [ ] **Hybrid Archive Loader:** Automatically detects and merges deliberation records from both SpacetimeDB and local Markdown files in `deliberations/`.
+* [ ] **Interactive TUI History Browser (`magi history`):** Ratatui dual-pane browser with keyboard navigation (`↑`/`↓`), real-time node vote inspector (Melchior, Balthasar, Casper), and instant report viewer.
+* [ ] **Hybrid `magi show <id>`:** Seamlessly retrieves and formats deliberation reports from disk even when SpacetimeDB is offline or was purged.
+
+---
+
+### 🔹 0.2.3 — Stability, Resilience & Quorum Safeguards (Completed)
+* [x] **Degraded Quorum Tolerance (2-of-3):** Deliberation continues when 1 node drops offline or hits quota limits, synthesizing a neutral position and proceeding with majority consensus.
+* [x] **Smart Retries & Exponential Backoff:** Automatic retry loop for HTTP 429 rate limits, 5xx errors, and transport disconnects with `Retry-After` header inspection.
+* [x] **Dynamic Schema Fallback:** Transparent recovery from HTTP 400 when endpoints lack `json_object` support.
+* [x] **Payload Context Budgeting:** Intelligent 60/40 head-tail truncation protecting token limits against massive diffs.
+* [x] **Canonical Root Directory Resolution:** Guarantees `deliberations/` is strictly saved at the repository root, eliminating nested directories.
+
+---
+
+### 🔹 0.2.2 — Smart Ingestion, Noise Filtering & Context Discovery (Completed)
+* [x] **Automatic Project Context Discovery:** Deep recursive inspection of workspace manifests (`Cargo.toml`, `package.json`, `go.mod`, `pyproject.toml`).
+* [x] **Smart Noise & Lockfile Filtering:** Automated filtering of lockfiles, minified assets, bundles, and build outputs from diff payloads.
 * [x] **MAGI System Arbitrator in `lineamientos-pw`:** Formal integration of MAGI as the binding architectural and security veto arbitrator for AI-assisted development.
 
 ---
 
-### 🔹 0.2.1 — Git Diff Auditing, Dilemma Debates & Expanded MCP Suite (Completed)
-* [x] **Git Diff Auditing (`magi diff`):** Audits uncommitted working tree changes, `--staged` index deltas, or branch comparisons without manual file copying.
-* [x] **Architectural Dilemma Debates (`magi debate`):** Multi-agent trade-off debates on technology dilemmas and architectural decisions.
-* [x] **Expanded MCP Tool Suite (5 Tools):** Exposed `audit_git_changes`, `triage_incident_with_magi`, `check_security_veto`, and `debate_technical_dilemma` alongside `deliberate_with_magi`.
-* [x] **Security Veto Direct Evaluator:** Fast-path defensive analysis with Balthasar-2 for CWE detection and veto thresholds.
-
----
-
-### 🔹 0.2.0 — Modular Helpers, Deep Deliberation & MCP Server (Completed)
-* [x] **Model Context Protocol (MCP) Server:** Native `magi mcp` implementation over stdio exposing `deliberate_with_magi` for autonomous agent integration (Antigravity, Claude Desktop).
-* [x] **Pure Local Consensus Engine:** Offline-capable consensus and security veto resolver with zero mandatory database dependencies.
-* [x] **Deep Deliberation Rounds (`--rounds N`):** Configurable multi-round debate depth across all workflows with iterative peer exposure.
-* [x] **Semantic Process Exit Codes:** Semantic exit codes (`0` for APPROVED, `1` for REJECTED/VETO, `2` for SPLIT, `3` for ERROR) for automated CI/CD gating.
-* [x] **Machine-Readable JSON Output (`--output json`):** Structured JSON serialization envelope for programmatic consumption.
-* [x] **Architectural Helper Decoupling:** Dedicated `helpers/` submodules across `core`, `llm`, and `ui`.
-* [x] **Complete i18n String Externalization:** Zero hardcoded prompt strings or branching; 100% catalog-driven telemetry and prompts.
-
----
-
-### 🔹 0.3.0 — Interactive Reports & Visual Export (Next)
-* [ ] **Standalone Diegetic NERV HTML Reports (`--export html`):** Generates standalone interactive HTML compliance reports with CRT monitor visuals, risk meters, and full debate trajectories.
-* [ ] **Diegetic Token Streaming:** Real-time typewriter phosphor rendering inside NERV monitor boxes as each LLM node streams its tokens over SSE/WebSockets.
-* [ ] **Interactive TUI Enhancements:** Live log scrolling and filterable deliberation history search in the Ratatui command deck.
-
----
-
-### 🔹 1.0.0 — Production Stabilization & Standalone Distribution
-* [ ] **Standalone Native Binaries:** GitHub Releases with single-binary standalone distributions for Windows (`magi.exe`), Linux (`x86_64`), and macOS (`arm64`/`x86_64`).
-* [ ] **Zero-Config Local Profiles:** Pre-configured one-click templates for 100% offline local execution via Ollama (`qwen2.5-coder`, `deepseek-r1:8b`, `llama3.2`).
-* [ ] **Multi-Model Consensus Benchmarking Suite:** Built-in benchmarking harness to profile latency, token costs, and consensus divergence across different model combinations.
-* [ ] **Long-Term State Migration:** Automated migration tooling for SpacetimeDB database schemas across major upgrades.
+### 🔹 0.2.1 — Git Diff Auditing & Expanded MCP Suite (Completed)
+* [x] **Git Diff Auditing (`magi diff`):** Audits uncommitted working tree changes, `--staged` index deltas, or branch comparisons.
+* [x] **Architectural Dilemma Debates (`magi debate`):** Multi-agent trade-off debates on technology dilemmas and architectural choices.
+* [x] **5 Specialized MCP Tools:** `deliberate_with_magi`, `audit_git_changes`, `triage_incident_with_magi`, `check_security_veto`, and `debate_technical_dilemma`.

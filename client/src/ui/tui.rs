@@ -84,32 +84,37 @@ pub async fn run_interactive_session(
                             last_event = "Console transcript cleared".to_string();
                         }
                         "history" => {
-                            match db_client.list_history(10).await {
-                                Ok(records) => {
-                                    transcript.push("┌── RECENT SPACETIMEDB DELIBERATION RECORDS ──────────────".to_string());
-                                    if records.is_empty() {
-                                        transcript
-                                            .push("│ (No deliberation records found)".to_string());
+                            let deliberations_dir = crate::ui::report::get_deliberations_dir();
+                            let records = crate::ui::helpers::history_loader::load_hybrid(
+                                Some(&db_client),
+                                &deliberations_dir,
+                                10,
+                            )
+                            .await;
+                            transcript.push(
+                                "┌── RECENT MAGI DELIBERATION RECORDS (HYBRID) ─────────────"
+                                    .to_string(),
+                            );
+                            if records.is_empty() {
+                                transcript.push("│ (No deliberation records found)".to_string());
+                            } else {
+                                for r in &records {
+                                    let short_title = if r.title.len() > 28 {
+                                        format!("{}...", &r.title[..25])
                                     } else {
-                                        for r in &records {
-                                            let short_title = if r.title.len() > 28 {
-                                                format!("{}...", &r.title[..25])
-                                            } else {
-                                                r.title.clone()
-                                            };
-                                            transcript.push(format!(
-                                                "│ MAGI-{:06} | {:<28} | {:<14} | [{}]",
-                                                r.id, short_title, r.context_type, r.status
-                                            ));
-                                        }
-                                    }
-                                    transcript.push("└─────────────────────────────────────────────────────────".to_string());
-                                }
-                                Err(e) => {
-                                    transcript
-                                        .push(format!("[ERROR] Failed to fetch history: {}", e));
+                                        r.title.clone()
+                                    };
+                                    let (badge, _) = r.verdict_badge();
+                                    transcript.push(format!(
+                                        "│ MAGI-{:04} | {:<28} | {:<14} | [{}]",
+                                        r.id, short_title, r.context_type, badge
+                                    ));
                                 }
                             }
+                            transcript.push(
+                                "└─────────────────────────────────────────────────────────"
+                                    .to_string(),
+                            );
                             last_event = "History fetched".to_string();
                         }
                         "status" => {
