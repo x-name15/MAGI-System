@@ -126,3 +126,12 @@ Licensed under the **GNU General Public License v3.0 (GPL-3.0)**. See [LICENSE](
 
 ### Credits
 **Author:** Mr Jacket / Felix Manrique / x-name15 (we are all the same person)
+
+---
+
+## Copyright & Legal Disclaimer
+
+MAGI-System is an independent fan project and is not affiliated with, endorsed by, or connected to Gainax, Khara, or the Neon Genesis Evangelion franchise in any way.
+
+Neon Genesis Evangelion and all related names, characters, and imagery are the intellectual property of Gainax and Khara. No copyright infringement is intended.
+
