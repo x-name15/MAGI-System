@@ -7,8 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.2.6] - 2026-10-09 — OpenRouter Server Tools & Subagent Worker Ecosystem
+
+### Added
+- **OpenRouter Server Tools & Subagent Worker Ecosystem (`openrouter:subagent`, `openrouter:web_search`):**
+  - Integrated native OpenRouter server tools, empowering Trinity nodes to delegate specialized, micro-level analytical tasks to faster or free worker models (e.g. `cohere/north-mini-code:free`) mid-generation.
+  - Implemented persona-specialized subagent workers: Melchior-1 delegates to `systems_analyst` (algorithmic structures & trade-offs), Balthasar-2 to `security_scanner` (CWE vulnerability surface & attack vectors), and Casper-3 to `pragmatic_evaluator` (DX, cognitive load & deliverability).
+  - Built-in anti-recursion safeguard preventing self-reference loops (worker model cannot match calling node model).
+  - Configurable globally via `MAGI_SUBAGENT_MODEL`, `MAGI_SUBAGENT_WEB_SEARCH`, and `MAGI_WEB_SEARCH`, alongside node-specific overrides (`MELCHIOR_SUBAGENT_MODEL`, `BALTHASAR_SUBAGENT_MODEL`, `CASPER_SUBAGENT_MODEL`, etc.).
+  - Resilient runtime fallback: automatically retries standard completion if a provider or model rejects server tools or tool-calling JSON schemas.
+- **Subagent Worker Execution Telemetry (`llm::helpers::dispatch_helper`):**
+  - Added live console notifications (`[{node_id}] Subagent worker invoked: {worker} (task: {task_name})`) to track tool execution transparently when models delegate tasks to worker models.
+
+### Fixed
+- **I18n Localized Rationale Fallbacks & Contextual Debate Posture (`i18n`, `core::orchestrator`, `llm::helpers`):**
+  - Replaced hardcoded English fallback (`"Evaluated under node analytical lens"`) with localized i18n entries (`default_rationale` and `maintains_position_rationale`) in `client/i18n/es.json` and `client/i18n/en.json`.
+  - Expanded JSON parser field aliases (`conclusion`, `summary`, `justification`, `verdict_rationale`, `decision`) in `parse_llm_json_response`.
+  - Automatically contextualizes Round 2 post-debate conclusions when nodes maintain their initial vote and risk score without redundant justification, preserving full analytical context in Markdown reports and terminal output.
+
+---
+
 ## [0.2.5] - 2026-10-08 — Configurable Max Tokens, Truncation Recovery & CLI/MCP Robustness
 
+### Added
 - **Contingency Backup Brain & Failover Model (`MAGI_FALLBACK_MODEL`, `llm::helpers::dispatch_helper`):**
   - Added hot-standby failover support across all Trinity nodes (Melchior-1, Balthasar-2, Casper-3).
   - When a node's primary model fails (e.g. out of API credits, HTTP 402, persistent 429 rate limits, or provider outages), the node transparently engages the configured fallback model (e.g. `cohere/north-mini-code:free`) without aborting or triggering degraded quorum.

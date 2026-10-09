@@ -7,7 +7,9 @@
 
 use crate::config::NodeConfig;
 use crate::error::MagiError;
-use crate::llm::{dispatch_llm_request_with_fallback, LlmProvider, NodeEvaluation};
+use crate::llm::{
+    dispatch_llm_request_with_fallback, LlmProvider, NodeEvaluation, ServerToolsConfig,
+};
 use crate::skills::PromptLoader;
 use async_trait::async_trait;
 use reqwest::Client;
@@ -19,6 +21,9 @@ pub struct BalthasarNode {
     pub base_url: String,
     pub model: String,
     pub fallback_model: Option<String>,
+    pub subagent_model: Option<String>,
+    pub subagent_web_search: bool,
+    pub enable_web_search: bool,
     pub api_key: Option<String>,
     pub max_retries: u32,
     pub retry_delay_ms: u64,
@@ -36,6 +41,9 @@ impl BalthasarNode {
             base_url: cfg.base_url.clone(),
             model: cfg.model.clone(),
             fallback_model: cfg.fallback_model.clone(),
+            subagent_model: cfg.subagent_model.clone(),
+            subagent_web_search: cfg.subagent_web_search,
+            enable_web_search: cfg.enable_web_search,
             api_key: cfg.api_key.clone(),
             max_retries: cfg.max_retries,
             retry_delay_ms: cfg.retry_delay_ms,
@@ -61,6 +69,12 @@ impl LlmProvider for BalthasarNode {
             system_prompt.to_string()
         };
 
+        let tools_cfg = ServerToolsConfig {
+            subagent_model: self.subagent_model.clone(),
+            subagent_web_search: self.subagent_web_search,
+            enable_web_search: self.enable_web_search,
+        };
+
         dispatch_llm_request_with_fallback(
             &self.client,
             node_id,
@@ -68,6 +82,7 @@ impl LlmProvider for BalthasarNode {
             &self.base_url,
             &self.model,
             self.fallback_model.as_deref(),
+            Some(&tools_cfg),
             self.api_key.as_deref(),
             &active_prompt,
             user_prompt,

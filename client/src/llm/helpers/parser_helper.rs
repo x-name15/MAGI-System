@@ -70,8 +70,15 @@ pub fn parse_llm_json_response(raw_text: &str) -> Result<RawNodeOutput, MagiErro
                 .or_else(|| obj.get("argument"))
                 .or_else(|| obj.get("analysis"))
                 .or_else(|| obj.get("reasoning"))
+                .or_else(|| obj.get("conclusion"))
+                .or_else(|| obj.get("summary"))
+                .or_else(|| obj.get("justification"))
+                .or_else(|| obj.get("verdict_rationale"))
+                .or_else(|| obj.get("decision"))
+                .or_else(|| obj.get("explicacion"))
                 .and_then(|v| v.as_str())
-                .unwrap_or("Evaluated under node analytical lens")
+                .unwrap_or("")
+                .trim()
                 .to_string();
 
             let confidence = obj

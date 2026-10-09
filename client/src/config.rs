@@ -13,6 +13,9 @@ pub struct NodeConfig {
     pub provider: String,
     pub model: String,
     pub fallback_model: Option<String>,
+    pub subagent_model: Option<String>,
+    pub subagent_web_search: bool,
+    pub enable_web_search: bool,
     pub api_key: Option<String>,
     pub base_url: String,
     pub max_retries: u32,
@@ -36,6 +39,12 @@ pub struct MagiConfig {
     pub max_tokens: u32,
     #[allow(dead_code)]
     pub fallback_model: Option<String>,
+    #[allow(dead_code)]
+    pub subagent_model: Option<String>,
+    #[allow(dead_code)]
+    pub subagent_web_search: bool,
+    #[allow(dead_code)]
+    pub enable_web_search: bool,
     pub melchior: NodeConfig,
     pub balthasar: NodeConfig,
     pub casper: NodeConfig,
@@ -103,6 +112,19 @@ impl MagiConfig {
             .or_else(|_| env::var("LLM_FALLBACK_MODEL"))
             .ok();
 
+        let default_subagent_model = env::var("MAGI_SUBAGENT_MODEL")
+            .or_else(|_| env::var("LLM_SUBAGENT_MODEL"))
+            .ok();
+
+        let default_subagent_web_search = env::var("MAGI_SUBAGENT_WEB_SEARCH")
+            .map(|v| v.to_lowercase() == "true" || v == "1")
+            .unwrap_or(false);
+
+        let default_enable_web_search = env::var("MAGI_WEB_SEARCH")
+            .or_else(|_| env::var("MAGI_ENABLE_WEB_SEARCH"))
+            .map(|v| v.to_lowercase() == "true" || v == "1")
+            .unwrap_or(false);
+
         let default_endpoint = env::var("MAGI_ENDPOINT")
             .or_else(|_| env::var("LLM_ENDPOINT"))
             .or_else(|_| env::var("OPENROUTER_BASE_URL"))
@@ -126,6 +148,9 @@ impl MagiConfig {
             &default_provider,
             &default_model,
             default_fallback_model.as_deref(),
+            default_subagent_model.as_deref(),
+            default_subagent_web_search,
+            default_enable_web_search,
             &default_endpoint,
             default_api_key.as_deref(),
             max_retries,
@@ -138,6 +163,9 @@ impl MagiConfig {
             &default_provider,
             &default_model,
             default_fallback_model.as_deref(),
+            default_subagent_model.as_deref(),
+            default_subagent_web_search,
+            default_enable_web_search,
             &default_endpoint,
             default_api_key.as_deref(),
             max_retries,
@@ -150,6 +178,9 @@ impl MagiConfig {
             &default_provider,
             &default_model,
             default_fallback_model.as_deref(),
+            default_subagent_model.as_deref(),
+            default_subagent_web_search,
+            default_enable_web_search,
             &default_endpoint,
             default_api_key.as_deref(),
             max_retries,
@@ -169,6 +200,9 @@ impl MagiConfig {
             max_context_chars,
             max_tokens,
             fallback_model: default_fallback_model,
+            subagent_model: default_subagent_model,
+            subagent_web_search: default_subagent_web_search,
+            enable_web_search: default_enable_web_search,
             melchior,
             balthasar,
             casper,
@@ -183,6 +217,9 @@ impl MagiConfig {
         default_provider: &str,
         default_model: &str,
         default_fallback_model: Option<&str>,
+        default_subagent_model: Option<&str>,
+        default_subagent_web_search: bool,
+        default_enable_web_search: bool,
         default_endpoint: &str,
         default_api_key: Option<&str>,
         max_retries: u32,
@@ -206,6 +243,19 @@ impl MagiConfig {
         let fallback_model = env::var(format!("{}_FALLBACK_MODEL", prefix))
             .ok()
             .or_else(|| default_fallback_model.map(String::from));
+
+        let subagent_model = env::var(format!("{}_SUBAGENT_MODEL", prefix))
+            .ok()
+            .or_else(|| default_subagent_model.map(String::from));
+
+        let subagent_web_search = env::var(format!("{}_SUBAGENT_WEB_SEARCH", prefix))
+            .map(|v| v.to_lowercase() == "true" || v == "1")
+            .unwrap_or(default_subagent_web_search);
+
+        let enable_web_search = env::var(format!("{}_WEB_SEARCH", prefix))
+            .or_else(|_| env::var(format!("{}_ENABLE_WEB_SEARCH", prefix)))
+            .map(|v| v.to_lowercase() == "true" || v == "1")
+            .unwrap_or(default_enable_web_search);
 
         let api_key = env::var(format!("{}_API_KEY", prefix))
             .ok()
@@ -237,6 +287,9 @@ impl MagiConfig {
             provider,
             model,
             fallback_model,
+            subagent_model,
+            subagent_web_search,
+            enable_web_search,
             api_key,
             base_url,
             max_retries,
@@ -260,10 +313,16 @@ impl Default for MagiConfig {
             max_context_chars: 60_000,
             max_tokens: 4096,
             fallback_model: None,
+            subagent_model: None,
+            subagent_web_search: false,
+            enable_web_search: false,
             melchior: NodeConfig {
                 provider: "mock".to_string(),
                 model: "mock-v1".to_string(),
                 fallback_model: None,
+                subagent_model: None,
+                subagent_web_search: false,
+                enable_web_search: false,
                 api_key: None,
                 base_url: "http://127.0.0.1:0".to_string(),
                 max_retries: 3,
@@ -275,6 +334,9 @@ impl Default for MagiConfig {
                 provider: "mock".to_string(),
                 model: "mock-v1".to_string(),
                 fallback_model: None,
+                subagent_model: None,
+                subagent_web_search: false,
+                enable_web_search: false,
                 api_key: None,
                 base_url: "http://127.0.0.1:0".to_string(),
                 max_retries: 3,
@@ -286,6 +348,9 @@ impl Default for MagiConfig {
                 provider: "mock".to_string(),
                 model: "mock-v1".to_string(),
                 fallback_model: None,
+                subagent_model: None,
+                subagent_web_search: false,
+                enable_web_search: false,
                 api_key: None,
                 base_url: "http://127.0.0.1:0".to_string(),
                 max_retries: 3,
@@ -316,6 +381,9 @@ mod tests {
             "openai-compatible",
             "qwen2.5-coder:7b",
             None,
+            None,
+            false,
+            false,
             "http://localhost:8000/v1",
             None,
             3,
@@ -331,6 +399,9 @@ mod tests {
         assert_eq!(node.max_context_chars, 60_000);
         assert_eq!(node.max_tokens, 4096);
         assert_eq!(node.fallback_model, None);
+        assert_eq!(node.subagent_model, None);
+        assert!(!node.subagent_web_search);
+        assert!(!node.enable_web_search);
 
         env::remove_var("MAGI_PROVIDER");
         env::remove_var("MAGI_MODEL");
@@ -348,6 +419,9 @@ mod tests {
             "openai-compatible",
             "default",
             None,
+            None,
+            false,
+            false,
             "http://localhost:11434/v1",
             None,
             3,
@@ -375,6 +449,9 @@ mod tests {
             "openai-compatible",
             "default",
             None,
+            None,
+            false,
+            false,
             "http://localhost:11434/v1",
             None,
             3,
@@ -402,6 +479,9 @@ mod tests {
             "openai-compatible",
             "default",
             None,
+            None,
+            false,
+            false,
             "http://localhost:11434/v1",
             None,
             3,
@@ -428,6 +508,9 @@ mod tests {
             "openai-compatible",
             "primary-model",
             Some("cohere/north-mini-code:free"),
+            None,
+            false,
+            false,
             "http://localhost:11434/v1",
             None,
             3,
@@ -445,6 +528,9 @@ mod tests {
             "openai-compatible",
             "primary-model",
             Some("cohere/north-mini-code:free"),
+            None,
+            false,
+            false,
             "http://localhost:11434/v1",
             None,
             3,
@@ -459,5 +545,63 @@ mod tests {
 
         env::remove_var("MAGI_FALLBACK_MODEL");
         env::remove_var("TEST_FB_OVERRIDE_FALLBACK_MODEL");
+    }
+
+    #[test]
+    fn test_subagent_and_web_search_resolution() {
+        let _guard = ENV_MUTEX.lock().unwrap_or_else(|e| e.into_inner());
+        env::set_var("MAGI_SUBAGENT_MODEL", "cohere/north-mini-code:free");
+        env::set_var("MAGI_SUBAGENT_WEB_SEARCH", "true");
+        env::set_var("TEST_SA_OVERRIDE_SUBAGENT_MODEL", "custom/scanner:free");
+        env::set_var("TEST_SA_OVERRIDE_WEB_SEARCH", "true");
+
+        let overridden = MagiConfig::resolve_node_config(
+            "TEST_SA_OVERRIDE",
+            "openai-compatible",
+            "primary-model",
+            None,
+            Some("cohere/north-mini-code:free"),
+            true,
+            false,
+            "http://localhost:11434/v1",
+            None,
+            3,
+            1000,
+            60_000,
+            4096,
+        );
+        assert_eq!(
+            overridden.subagent_model.as_deref(),
+            Some("custom/scanner:free")
+        );
+        assert!(overridden.subagent_web_search);
+        assert!(overridden.enable_web_search);
+
+        let default_node = MagiConfig::resolve_node_config(
+            "TEST_SA_DEFAULT",
+            "openai-compatible",
+            "primary-model",
+            None,
+            Some("cohere/north-mini-code:free"),
+            true,
+            false,
+            "http://localhost:11434/v1",
+            None,
+            3,
+            1000,
+            60_000,
+            4096,
+        );
+        assert_eq!(
+            default_node.subagent_model.as_deref(),
+            Some("cohere/north-mini-code:free")
+        );
+        assert!(default_node.subagent_web_search);
+        assert!(!default_node.enable_web_search);
+
+        env::remove_var("MAGI_SUBAGENT_MODEL");
+        env::remove_var("MAGI_SUBAGENT_WEB_SEARCH");
+        env::remove_var("TEST_SA_OVERRIDE_SUBAGENT_MODEL");
+        env::remove_var("TEST_SA_OVERRIDE_WEB_SEARCH");
     }
 }

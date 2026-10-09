@@ -725,20 +725,36 @@ impl MagiOrchestrator {
                 }
             }
 
-            // Annotate with Round 1 positions for audit trail
+            // Annotate with Round 1 positions for audit trail and contextualize default rationales
             for evaluation in &mut final_evals {
                 if let Some(first_position) = first_round
                     .iter()
                     .find(|first| first.node_id == evaluation.node_id)
                 {
-                    let init_arg = if !first_position.rationale.is_empty() {
+                    let init_arg = if !first_position.rationale.trim().is_empty() {
                         first_position.rationale.clone()
                     } else {
                         first_position.argument.clone()
                     };
-                    evaluation.initial_argument = Some(init_arg);
+                    evaluation.initial_argument = Some(init_arg.clone());
                     evaluation.initial_vote = Some(first_position.vote.clone());
                     evaluation.initial_risk_score = Some(first_position.risk_score);
+
+                    // If final post-debate rationale is empty or matches generic fallback,
+                    // contextualize with round 1 rationale
+                    if evaluation.rationale.trim().is_empty()
+                        || evaluation.rationale == bundle.prompt.default_rationale
+                    {
+                        if evaluation.vote == first_position.vote {
+                            evaluation.rationale = format!(
+                                "{}: {}",
+                                bundle.debate.maintains_position_rationale, init_arg
+                            );
+                        } else {
+                            evaluation.rationale = init_arg;
+                        }
+                        evaluation.argument = evaluation.rationale.clone();
+                    }
                 }
             }
 

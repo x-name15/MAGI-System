@@ -126,6 +126,14 @@ impl UiMessages {
     }
 }
 
+fn default_maintains_position_rationale() -> String {
+    "Maintains initial position after reviewing peer arguments.".to_string()
+}
+
+fn default_rationale() -> String {
+    "Evaluated under node analytical lens.".to_string()
+}
+
 /// Localized strings for Trinity debate and orchestration.
 #[derive(Debug, Clone, Deserialize)]
 #[allow(dead_code)]
@@ -137,6 +145,8 @@ pub struct DebateMessages {
     pub opening_instruction: String,
     pub incident_deliberation_prompt: String,
     pub lead_node_label: String,
+    #[serde(default = "default_maintains_position_rationale")]
+    pub maintains_position_rationale: String,
 }
 
 impl DebateMessages {
@@ -201,6 +211,8 @@ pub struct PromptMessages {
     pub code_context_label: String,
     pub language_instruction: String,
     pub json_schema_instruction: String,
+    #[serde(default = "default_rationale")]
+    pub default_rationale: String,
 }
 
 impl PromptMessages {
@@ -260,6 +272,10 @@ mod tests {
         assert_eq!(es.ui.synthesis, "SÍNTESIS");
         assert!(en.debate.prompt_final.contains("FINAL DEBATE ROUND"));
         assert!(es.debate.prompt_final.contains("DEBATE RONDA FINAL"));
+        assert!(!en.debate.maintains_position_rationale.is_empty());
+        assert!(!es.debate.maintains_position_rationale.is_empty());
+        assert!(!en.prompt.default_rationale.is_empty());
+        assert!(!es.prompt.default_rationale.is_empty());
     }
 
     #[test]
