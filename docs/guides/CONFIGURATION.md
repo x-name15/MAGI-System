@@ -1,148 +1,137 @@
-# Model & API Key Configuration Guide (MAGI System)
+# Model & Environment Configuration Guide (MAGI System)
 
 MAGI System implements a 100% vendor-agnostic HTTP transport based on the **OpenAI Chat Completions REST API** standard (`POST /chat/completions`). It requires no proprietary cloud SDKs and connects natively to any cloud provider, proxy gateway, or local inference engine (Ollama, LM Studio, vLLM).
 
-MAGI supports two primary configuration modes in your `.env` file:
-1. **Global Mode (Unified):** A single API Key, endpoint, and default model for the entire Trinity.
-2. **Granular Mode (Per-Node):** Independent API keys, endpoints, and specialized models for each individual persona (**Melchior-1**, **Balthasar-2**, and **Casper-3**).
+MAGI supports two primary configuration paradigms in your `.env` file:
+1. **Global Mode (Unified):** A single API Key, endpoint, fallback model, and subagent worker for the entire Trinity.
+2. **Granular Mode (Per-Node):** Independent API keys, endpoints, primary models, hot-standby fallback models, and subagents for each individual persona (**Melchior-1**, **Balthasar-2**, and **Casper-3**).
 
 ---
 
-## Mode 1: Global Configuration (Unified)
+## 1. Complete Environment Reference
 
-Ideal if you have a single provider account or API key and want all three nodes to share the same connection or credit pool.
+| Environment Variable | Description | Default | Node Overrides |
+| :--- | :--- | :--- | :--- |
+| `MAGI_ENDPOINT` | Base URL for LLM Chat Completions endpoint | `https://openrouter.ai/api/v1` | `MELCHIOR_ENDPOINT`, `BALTHASAR_ENDPOINT`, `CASPER_ENDPOINT` |
+| `MAGI_API_KEY` | Bearer API token for authentication | None | `MELCHIOR_API_KEY`, `BALTHASAR_API_KEY`, `CASPER_API_KEY` |
+| `MAGI_MODEL` | Primary model identifier | `openai/gpt-4o-mini` | `MELCHIOR_MODEL`, `BALTHASAR_MODEL`, `CASPER_MODEL` |
+| `MAGI_FALLBACK_MODEL` | Hot-standby failover model used when primary fails | None | `MELCHIOR_FALLBACK_MODEL`, `BALTHASAR_FALLBACK_MODEL`, `CASPER_FALLBACK_MODEL` |
+| `MAGI_SUBAGENT_MODEL` | Worker model for OpenRouter server tools delegation | None | `MELCHIOR_SUBAGENT_MODEL`, `BALTHASAR_SUBAGENT_MODEL`, `CASPER_SUBAGENT_MODEL` |
+| `MAGI_SUBAGENT_WEB_SEARCH` | Enables web search tool for subagent workers | `false` | `MELCHIOR_SUBAGENT_WEB_SEARCH`, etc. |
+| `MAGI_WEB_SEARCH` | Enables web search tool for primary node evaluations | `false` | `MELCHIOR_WEB_SEARCH`, etc. |
+| `MAGI_MAX_TOKENS` | Maximum completion token budget per generation | `4096` | `MELCHIOR_MAX_TOKENS`, `BALTHASAR_MAX_TOKENS`, `CASPER_MAX_TOKENS` |
+| `MAGI_MAX_CONTEXT_CHARS`| Character budget for payload before smart 60/40 truncation| `60000` | N/A |
+| `MAGI_MAX_RETRIES` | Max retries for transient HTTP errors (429, 5xx) | `3` | N/A |
+| `MAGI_RETRY_DELAY_MS` | Initial backoff delay in milliseconds | `1000` | N/A |
+| `MAGI_ALLOW_DEGRADED_QUORUM`| Enables 2-of-3 majority consensus if 1 node drops offline | `true` | N/A |
+| `MAGI_TIMEOUT_SECONDS` | Maximum timeout in seconds for complete deliberation | `360` | N/A |
+| `MAGI_LANG` | Enforces display & report language (`es` or `en`) | Auto-detect | N/A |
+| `MAGI_AUTHOR` | Author identity string recorded in SpacetimeDB audit logs | `developer@magi` | N/A |
+| `SPACETIMEDB_URI` | URL of the local SpacetimeDB instance | `http://spacetimedb:3000` (Docker) | N/A |
+| `SPACETIMEDB_DATABASE`| Target database module name | `magi-system` | N/A |
 
-### Example 1A: OpenRouter (Single Global API Key)
-In your repository root, edit or create `.env`:
+> **Smart Auto-Resolution:** If `MAGI_API_KEY` or any `{NODE}_API_KEY` begins with `sk-or-`, MAGI automatically sets the endpoint to `https://openrouter.ai/api/v1` without requiring manual URL configuration.
+
+---
+
+## 2. Configuration Examples
+
+### Example 1: OpenRouter with Granular Paid Personas & Free Subagent Worker
+This is the recommended production pair-programming setup: high-quality specialized primary models backed by a fast, free worker model for delegated sub-tasks:
 
 ```env
-# Official OpenRouter base endpoint
-MAGI_ENDPOINT=https://openrouter.ai/api/v1
-MAGI_API_KEY=sk-or-v1-your-openrouter-key...
+SPACETIMEDB_URI=http://spacetimedb:3000
+SPACETIMEDB_DATABASE=magi-system
+MAGI_LANG=es
+MAGI_MAX_TOKENS=4096
 
-# Base model for all 3 nodes
-MAGI_MODEL=anthropic/claude-3.5-sonnet
+# Subagent Worker Model (Used by all nodes for micro-level analytical delegation)
+MAGI_SUBAGENT_MODEL=cohere/north-mini-code:free
+
+# ==============================================================================
+# MELCHIOR-1 (The Scientist: Logic, Architecture & Algorithms)
+# ==============================================================================
+MELCHIOR_API_KEY=sk-or-v1-melchior-key...
+MELCHIOR_MODEL=deepseek/deepseek-v4.1-flash
+MELCHIOR_FALLBACK_MODEL=cohere/north-mini-code:free
+
+# ==============================================================================
+# BALTHASAR-2 (The Mother: Cybersecurity & Authoritative Veto)
+# ==============================================================================
+BALTHASAR_API_KEY=sk-or-v1-balthasar-key...
+BALTHASAR_MODEL=openai/gpt-5.1-codex-mini
+BALTHASAR_FALLBACK_MODEL=nvidia/nemotron-3-super-120b-a12b:free
+
+# ==============================================================================
+# CASPER-3 (The Woman: Pragmatism, DX & Delivery)
+# ==============================================================================
+CASPER_API_KEY=sk-or-v1-casper-key...
+CASPER_MODEL=google/gemini-3.1-flash-lite
+CASPER_FALLBACK_MODEL=dots-studio/dots-3-note-preview:free
 ```
-*(Note: If you specify `OPENROUTER_API_KEY=sk-or-...`, MAGI automatically detects and configures the endpoint to `https://openrouter.ai/api/v1` without requiring manual URL setup).*
 
-### Example 1B: OpenRouter with Specialized Per-Node Models (Shared API Key)
-You can maintain a single global OpenRouter API key while assigning optimized models to each persona:
+---
+
+### Example 2: 100% Free Cloud Setup (OpenRouter Free Tier)
+Deploy MAGI with zero credit card usage relying on free OpenRouter endpoints:
 
 ```env
 MAGI_ENDPOINT=https://openrouter.ai/api/v1
-MAGI_API_KEY=sk-or-v1-your-global-key...
+MAGI_API_KEY=sk-or-v1-your-free-key...
+MAGI_FALLBACK_MODEL=cohere/north-mini-code:free
 
-# Melchior-1 (The Scientist): Pure logic, architecture, and complexity
 MELCHIOR_MODEL=cohere/north-mini-code:free
-
-# Balthasar-2 (The Mother): Cybersecurity, threat models, and authoritative veto
 BALTHASAR_MODEL=nvidia/nemotron-3-super-120b-a12b:free
-
-# Casper-3 (The Woman): Pragmatism, DX, and delivery feasibility
-CASPER_MODEL=openrouter/free
-```
-
-### Example 1C: 100% Offline Local Models (Zero API Key Needed)
-If you run models locally using Ollama, LM Studio, or vLLM:
-
-```env
-# Ollama
-MAGI_ENDPOINT=http://localhost:11434/v1
-MAGI_MODEL=qwen2.5-coder:7b
-MAGI_API_KEY=
-
-# LM Studio
-# MAGI_ENDPOINT=http://localhost:1234/v1
-# MAGI_MODEL=local-model
+CASPER_MODEL=dots-studio/dots-3-note-preview:free
 ```
 
 ---
 
-## Mode 2: Granular Configuration (Per-Node)
-
-Ideal if you maintain **separate API keys** (for tracking usage, enforcing distinct budget limits, or routing each node to different providers).
-
-### Example 2A: OpenRouter with Granular API Keys
-If you created 3 separate API keys in OpenRouter (one per node):
+### Example 3: 100% Offline Local Inference (Zero API Keys Needed)
+Run entirely air-gapped on your workstation using local Ollama models:
 
 ```env
-MAGI_ENDPOINT=https://openrouter.ai/api/v1
+# Point all nodes to local Ollama daemon
+MAGI_ENDPOINT=http://localhost:11434/v1
+MAGI_API_KEY=
+MAGI_MODEL=qwen2.5-coder:7b
 
-# ==========================================
-# MELCHIOR-1 (The Scientist)
-# ==========================================
-MELCHIOR_API_KEY=sk-or-v1-key-for-melchior...
-MELCHIOR_MODEL=anthropic/claude-3.5-sonnet
-
-# ==========================================
-# BALTHASAR-2 (The Mother - Security Veto)
-# ==========================================
-BALTHASAR_API_KEY=sk-or-v1-key-for-balthasar...
-BALTHASAR_MODEL=deepseek/deepseek-r1
-
-# ==========================================
-# CASPER-3 (The Woman - Pragmatism & DX)
-# ==========================================
-CASPER_API_KEY=sk-or-v1-key-for-casper...
-CASPER_MODEL=openai/gpt-4o
+# Or assign distinct local models per persona:
+MELCHIOR_MODEL=deepseek-r1:8b
+BALTHASAR_MODEL=llama3.1:8b
+CASPER_MODEL=mistral:7b
 ```
+*(Also compatible with LM Studio on `http://localhost:1234/v1`, vLLM on `http://localhost:8000/v1`, or LocalAI).*
 
-> **Smart Auto-Resolution:** If any `{NODE}_API_KEY` variable begins with `sk-or-`, MAGI automatically routes that specific node to `https://openrouter.ai/api/v1`, even if no explicit endpoint was defined for that node.
+---
 
-### Example 2B: Multi-Provider Hybrid Configuration
-You can freely mix local and cloud providers across personas:
+### Example 4: Hybrid Architecture (Local Developer + Cloud Security)
+Mix local models for rapid architecture audits while routing security audits to a frontier cloud model:
 
 ```env
-# Melchior runs locally on Ollama (Zero cost for architecture analysis)
+# Melchior runs locally on Ollama (Zero API cost for architecture analysis)
 MELCHIOR_ENDPOINT=http://localhost:11434/v1
 MELCHIOR_MODEL=qwen2.5-coder:7b
 MELCHIOR_API_KEY=
 
-# Balthasar runs on OpenRouter with Claude (Maximum security rigor)
+# Balthasar runs on Anthropic Claude 3.5 Sonnet for deep zero-trust security audits
 BALTHASAR_ENDPOINT=https://openrouter.ai/api/v1
-BALTHASAR_MODEL=anthropic/claude-3.5-sonnet
 BALTHASAR_API_KEY=sk-or-v1-balthasar-key...
+BALTHASAR_MODEL=anthropic/claude-3.5-sonnet
 
-# Casper runs directly on official DeepSeek
-CASPER_ENDPOINT=https://api.deepseek.com/v1
-CASPER_MODEL=deepseek-chat
-CASPER_API_KEY=sk-deepseek-key...
+# Casper runs locally on Ollama for pragmatic DX review
+CASPER_ENDPOINT=http://localhost:11434/v1
+CASPER_MODEL=mistral:7b
+CASPER_API_KEY=
 ```
 
 ---
 
-## Environment Variables Reference Table
+## 3. Hot-Standby Failover Behavior
 
-| Variable | Scope | Description | Default |
-| :--- | :--- | :--- | :--- |
-| `MAGI_ENDPOINT` | Global | OpenAI-compatible REST API base URL | `http://localhost:11434/v1` |
-| `MAGI_MODEL` | Global | Model identifier for all 3 nodes | `default` |
-| `MAGI_API_KEY` | Global | Authentication token (`Bearer <key>`) | `None` (Empty for local) |
-| `MAGI_TIMEOUT_SECONDS` | Global | HTTP timeout in seconds per node evaluation | `60` (120 recommended for heavy tiers) |
-| `OPENROUTER_API_KEY` | Fallback | If present, endpoint auto-resolves to OpenRouter | Auto-resolved |
-| `MELCHIOR_API_KEY` | Granular | Dedicated API key for Melchior-1 | Inherits `MAGI_API_KEY` |
-| `MELCHIOR_MODEL` | Granular | Dedicated model identifier for Melchior-1 | Inherits `MAGI_MODEL` |
-| `MELCHIOR_ENDPOINT`| Granular | Dedicated base URL for Melchior-1 | Inherits `MAGI_ENDPOINT` |
-| `BALTHASAR_API_KEY`| Granular | Dedicated API key for Balthasar-2 | Inherits `MAGI_API_KEY` |
-| `BALTHASAR_MODEL` | Granular | Dedicated model identifier for Balthasar-2 | Inherits `MAGI_MODEL` |
-| `BALTHASAR_ENDPOINT`| Granular| Dedicated base URL for Balthasar-2 | Inherits `MAGI_ENDPOINT` |
-| `CASPER_API_KEY` | Granular | Dedicated API key for Casper-3 | Inherits `MAGI_API_KEY` |
-| `CASPER_MODEL` | Granular | Dedicated model identifier for Casper-3 | Inherits `MAGI_MODEL` |
-| `CASPER_ENDPOINT` | Granular | Dedicated base URL for Casper-3 | Inherits `MAGI_ENDPOINT` |
-| `MAGI_LANG` | System | Output language for console & reports (`en`, `es`, or auto) | Auto |
-
----
-
-## Verifying Your Configuration
-
-To test your active configuration against an example proposal:
-
-```powershell
-# On Windows (PowerShell)
-.\magi.ps1 idea test_idea.md
-
-# On Linux / Docker
-docker compose run --rm magi idea test_idea.md
-```
-
-You will see real-time NERV phosphor terminal monitors reflecting the exact model assigned to each node during both evaluation rounds.
+When `MAGI_FALLBACK_MODEL` (or `{NODE}_FALLBACK_MODEL`) is configured:
+1. The dispatcher attempts generation with the primary model.
+2. If the primary model fails with HTTP 402 (Payment Required / Out of Credits), persistent 429 rate limits, connection resets, or 5xx server errors across all retries, the failover circuit engages.
+3. The node logs: `[{node_id}] Primary model ({model}) failed: {err}. Engaging backup circuit ({backup})...`.
+4. The fallback model is dispatched with identical prompts and schemas.
+5. In SpacetimeDB history and Markdown reports, the model is permanently marked as `<model> (backup)`.

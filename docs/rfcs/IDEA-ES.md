@@ -58,10 +58,10 @@ El sistema utiliza una arquitectura desacoplada (*decoupled*) basada en **Spacet
 ```
 
 ### Flujo de Datos (Lifecycle de una Consulta)
-1. **Invocación:** El desarrollador ejecuta `magi idea <file.md>`, `magi maintain <file>`, `magi triage <log>` o usa la consola interactiva `magi tui`.
+1. **Invocación:** El desarrollador ejecuta cualquiera de los 5 subcomandos (`magi diff`, `magi debate`, `magi idea`, `magi maintain`, `magi triage`), consulta el historial interactivo (`magi history`), o conecta un asistente IDE vía MCP (`magi mcp`).
 2. **Creación de Estado:** El CLI se conecta a SpacetimeDB y ejecuta el reducer `create_deliberation`. La DB asigna un `id` y fija el estado en `PENDING`.
 3. **Ronda 1 (Evaluación Ciega):** El orquestador ejecuta una evaluación paralela y cancelable para Melchior, Balthasar y Casper sin que conozcan las posturas ajenas (elimina sesgo de anclaje).
-4. **Ronda 2 (Debate de la Trinidad):** Cada nodo recibe las posiciones iniciales de los otros nodos, cuestiona sus argumentos y emite una posición final.
+4. **Ronda 2 (Debate de la Trinidad):** Cada nodo recibe las posiciones iniciales de los otros nodos, cuestiona sus argumentos y emite una posición final fundamentada.
 5. **Consenso Automático:** Los votos finales se envían a SpacetimeDB mediante `submit_node_vote`. El reducer `eval_consensus` aplica deterministamente la regla de Veto de Balthasar y mayorías.
 6. **Renderizado NERV TUI:** Se despliegan los monitores CRT fosforados NERV y se persiste un reporte Markdown estructurado en `deliberations/`.
 
@@ -76,10 +76,10 @@ El sistema utiliza una arquitectura desacoplada (*decoupled*) basada en **Spacet
 ### Cliente (CLI Orchestrator & TUI)
 * **Lenguaje:** Rust (Edición 2021).
 * **Runtime Asíncrono:** `tokio` (con características `full` para concurrencia HTTP y temporizadores).
-* **Cliente HTTP:** `reqwest` (Soporte JSON para APIs de Google Gemini, OpenAI, Anthropic, Ollama, DeepSeek, Grok).
-* **CLI Parser:** `clap` (Subcomandos `idea`, `maintain`, `triage`, argumentos y banderas).
+* **Cliente HTTP:** `reqwest` (Soporte REST OpenAI-compatible con reintentos exponenciales, circuito hot-standby y herramientas OpenRouter).
+* **CLI Parser:** `clap` (Subcomandos `diff`, `debate`, `idea`, `maintain`, `triage`, `history`, `show`, `purge`, `status`, `tui`, `mcp`).
 * **Serialización:** `serde`, `serde_json`.
-* **Interfaz de Usuario / TUI:** `ratatui` + `crossterm` (consola interactiva) y `colored` / ANSI 24-bit TrueColor (monitores fosforados NERV).
+* **Interfaz de Usuario / TUI:** `ratatui` + `crossterm` (consola interactiva y explorador dual-pane de historial) y `colored` / ANSI 24-bit TrueColor (monitores fosforados NERV).
 * **SpacetimeDB SDK / HTTP:** Cliente asíncrono WebSocket y REST.
 
 ---
@@ -98,33 +98,38 @@ magi-system/
 │       └── lib.rs                # Modelos de tablas, reducers y motor de consenso
 └── client/                       # CLI binario ejecutable
     ├── Cargo.toml
+    ├── i18n/                     # Catálogos de idioma (es.json, en.json)
     ├── skills/                   # Personas desacopladas en Markdown
     │   └── magi-system/
-    │       ├── melchior.md
-    │       ├── balthasar.md
-    │       └── casper.md
+    │       ├── melchoir-1.md
+    │       ├── balthasar-2.md
+    │       └── casper-3.md
     └── src/
         ├── main.rs               # Entrypoint & CLI Argument Parsing (clap)
-        ├── config.rs             # Carga dinámica de LLMs y variables (.env)
+        ├── config.rs             # Carga dinámica de LLMs, fallbacks y subagentes (.env)
         ├── core/
         │   ├── mod.rs
-        │   └── orchestrator.rs   # Coordinación de 2 rondas y debate de pares
+        │   ├── orchestrator.rs   # Coordinación de debate, quorum degradado y deliberación
+        │   └── helpers/          # Helpers de consenso, triaje, debate, descubrimiento y ruido git
         ├── llm/
-        │   ├── mod.rs            # Trait común `LlmProvider` y despachador
+        │   ├── mod.rs            # Trait común `LlmProvider`
         │   ├── melchior.rs       # Arquetipo científico
         │   ├── balthasar.rs      # Arquetipo de seguridad y Veto unilateral
         │   ├── casper.rs         # Arquetipo pragmático y anti-sobreingeniería
-        │   └── mock.rs           # Proveedor determinista offline
+        │   ├── mock.rs           # Proveedor determinista offline
+        │   └── helpers/          # Despachador HTTP, subagentes, reparación JSON y parser
         ├── db/
         │   ├── mod.rs
         │   └── client.rs         # Conexión, reducers y sincronización SpacetimeDB
-        ├── skills/
-        │   └── mod.rs            # Cargador dinámico de prompts Markdown
-        └── ui/
-            ├── mod.rs
-            ├── nerv_theme.rs     # Renderizador diegético CRT Phosphor NERV
-            ├── report.rs         # Generador de reportes Markdown persistentes
-            └── tui.rs            # Consola interactiva NERV en Ratatui/Crossterm
+        ├── mcp/
+        │   ├── mod.rs
+        │   └── handler.rs        # Servidor MCP stdio con 5 herramientas especializadas
+        ├── ui/
+        │   ├── mod.rs
+        │   ├── nerv_theme.rs     # Renderizador diegético CRT Phosphor NERV
+        │   ├── history_browser.rs# Explorador interactivo TUI dual-pane
+        │   ├── report.rs         # Generador de reportes Markdown persistentes
+        │   └── tui.rs            # Consola interactiva NERV en Ratatui/Crossterm
 ```
 
 ---

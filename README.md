@@ -18,29 +18,9 @@
 
 Instead of relying on a single LLM prompt that may suffer from hallucinations, blind spots, or confirmation bias, **MAGI System** audits technical proposals, source code, and incidents through a **parallel 2-round debate protocol** across three specialized archetypes:
 
-```text
-                     ┌───────────────────────┐
-                     │      BALTHASAR-2      │
-                     │   MOTHER · SECURITY   │
-                     │RISK [███░░░░░░░]  3/10│
-                     │ R2:  95%  LAT: 2500ms │
-                     ├───────────────────────┤
-                     │    ██ AGREEMENT ██    │
-                     │     [  AGREEMENT  ]   │
-                     └───────────┬───────────┘
-                                 │
-                ┌────────────────┴────────────────┐
-                │                                 │
-    ┌───────────┴───────────┐         ┌───────────┴───────────┐
-    │       CASPER-3        │         │      MELCHIOR-1       │
-    │  WOMAN · PRAGMATICS   │         │   SCIENTIST · ARCH    │
-    │RISK [█████████░]  9/10│         │RISK [███░░░░░░░]  3/10│
-    │ R2: 100%  LAT: 3200ms │         │ R2:  95%  LAT: 2700ms │
-    ├───────────────────────┼─────────┼───────────────────────┤
-    │     ██ DENIAL ██      │         │    ██ AGREEMENT ██    │
-    │     [    DENIAL   ]   │         │     [  AGREEMENT  ]   │
-    └───────────────────────┘         └───────────────────────┘
-```
+<p align="center">
+  <img src=".github/images/trinity.png" alt="MAGI Trinity Consensus" width="750" />
+</p>
 
 * **Melchior-1 (The Scientist):** Logic, clean architecture, algorithmic complexity, and scalability.
 * **Balthasar-2 (The Mother):** Defensive cybersecurity, OWASP Top 10, CWE classification, and **unilateral security veto power** (`risk >= 8`).
@@ -96,6 +76,10 @@ Direct commands that output diegetic NERV monitors and detailed findings straigh
 | `history` | Inspects previous deliberation records in SpacetimeDB | `.\magi.ps1 history` |
 | `status` | Pings the SpacetimeDB transactional engine | `.\magi.ps1 status` |
 
+<p align="center">
+  <img src=".github/images/history-command.png" alt="MAGI History Explorer" width="750" />
+</p>
+
 ### 2. Interactive Full-Screen NERV TUI Console
 Launch the full-screen terminal dashboard (`ratatui`) with keyboard navigation and natural-language intent understanding:
 ```powershell
@@ -116,7 +100,7 @@ Deep dive into the architecture, configuration, and internal protocols:
 - **[The Evangelion Trinity & Debate Protocol](docs/architecture/TRINITY.md):** The three archetypes, 2-round cross-examination, and decision matrix.
 - **[System Architecture](docs/architecture/ARCHITECTURE.md):** SpacetimeDB transactional engine, WASM reducers, and multi-agent concurrency.
 - **[Operations Runbook](docs/guides/OPERATIONS.md):** Docker container lifecycle, volume persistence, and deployment.
-- **[Project Roadmap](docs/rfcs/ROADMAP.md):** Realistic milestone tracker from v0.1.3 to v1.0.0.
+- **[Project Roadmap](docs/rfcs/ROADMAP.md):** Milestone tracker from v0.1.3 foundation to upcoming v0.3.0 codebase awareness.
 
 ---
 

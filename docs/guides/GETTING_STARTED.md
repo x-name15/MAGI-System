@@ -4,9 +4,9 @@ This guide will get you up and running with MAGI System in less than 2 minutes.
 
 ---
 
-## Quick Start
+## 1. Quickstart
 
-### Option A: PowerShell Runner (Windows)
+### Option A: Windows PowerShell Runner (Recommended for Windows)
 
 The simplest way to run MAGI on Windows with Docker Desktop:
 
@@ -15,18 +15,21 @@ The simplest way to run MAGI on Windows with Docker Desktop:
 git clone https://github.com/x-name15/magi-system.git
 cd magi-system
 
-# 2. Copy the sample environment file and configure your keys
+# 2. Setup your environment file
 Copy-Item .env.example .env
+# Edit .env to configure your OpenRouter or local model keys
 
-# 3. Start SpacetimeDB and build the modules
+# 3. Start SpacetimeDB daemon and compile WASM modules
 .\magi.ps1 start
 .\magi.ps1 build
 
 # 4. Run your first audit deliberation!
-.\magi.ps1 idea docs/rfcs/ROADMAP.md
+.\magi.ps1 debate "Should we store JWTs in HttpOnly cookies or localStorage for an internal SPA?"
 ```
 
-### Option B: Docker Compose Directly (Linux / macOS / Windows)
+---
+
+### Option B: Linux / macOS (Docker Compose Directly)
 
 ```bash
 # 1. Clone and enter directory
@@ -38,107 +41,80 @@ cp .env.example .env
 docker compose up -d spacetimedb
 
 # 3. Execute deliberation via client container
-docker compose run --rm magi idea docs/rfcs/ROADMAP.md
+docker compose run --rm magi debate "Should we store JWTs in HttpOnly cookies or localStorage for an internal SPA?"
 ```
 
 ---
 
-## Running Workflows
+### Option C: Pre-compiled Standalone Binaries
+
+Download ready-to-run releases from [GitHub Releases](https://github.com/x-name15/magi-system/releases):
+* **Linux (x86_64):** `magi-linux-amd64.tar.gz`
+* **Windows (x86_64):** `magi-windows-amd64.zip` (`magi.exe`)
 
 ```powershell
-# Review an RFC or Architecture proposal
+# Run directly against a running SpacetimeDB instance
+magi debate "PostgreSQL vs ClickHouse for audit log telemetry"
+```
+
+---
+
+## 2. Core Workflows
+
+Once installed, use MAGI across these developer workflows:
+
+### 1. Audit Git Changes (`diff`)
+Audit your working tree, staged index deltas, or branch comparisons before committing or opening a PR:
+```powershell
+.\magi.ps1 diff --staged
+```
+
+### 2. Debate Technical Dilemmas (`debate`)
+Submit an architectural trade-off or technology decision to Trinity cross-examination:
+```powershell
+.\magi.ps1 debate "Adopt Argon2id vs BCrypt for credential hashing in an auth service"
+```
+
+### 3. Review RFCs & Architecture Proposals (`idea`)
+Audit an architectural specification for theoretical soundness, security threats, and overengineering:
+```powershell
 .\magi.ps1 idea docs/rfcs/ROADMAP.md
+```
 
-# Review code under team guidelines
+### 4. Code Maintenance under Guidelines (`maintain`)
+Audit code against team standards, clean code rules, or personal guidelines:
+```powershell
 .\magi.ps1 maintain client/src/config.rs --guidelines docs/guides/OPERATIONS.md
+```
 
-# Diagnose a panic or error log
+### 5. Diagnose Panics & Incidents (`triage`)
+Route runtime errors and panics to a lead specialist, followed by full Trinity consensus:
+```powershell
 .\magi.ps1 triage logs/panic.log --code client/src/main.rs
+```
 
-# Launch the interactive full-screen TUI console
+### 6. Browse Past Deliberations (`history`)
+Launch the interactive dual-pane TUI History Browser to inspect deliberation audit trails:
+```powershell
+.\magi.ps1 history
+```
+
+### 7. Interactive NERV Command Deck (`tui`)
+Launch the full-screen terminal dashboard:
+```powershell
 .\magi.ps1 tui
 ```
 
-For complete CLI options, flags, and TUI commands, see the [CLI & TUI Manual](CLI_AND_TUI.md).
-
----
-
----
-
-## LLM Configuration (100% Vendor-Agnostic)
-
-MAGI speaks standard **OpenAI Chat Completions REST API** (`POST /chat/completions`). It has zero hardcoded vendor dependencies, allowing you to connect any cloud provider, local inference engine, or proxy gateway effortlessly.
-
-> **Comprehensive Configuration Guide:** For detailed examples covering OpenRouter, free-tier routers, hybrid models, and granular per-node API keys, see **[Model & API Configuration Guide (CONFIGURATION.md)](CONFIGURATION.md)**.
-
-### 1. Global Setup (Single endpoint for all 3 nodes)
-
-Set these in `.env`:
-
-* **100% Offline / Local Models (Zero API key needed):**
-  ```env
-  # Ollama (runs at localhost:11434/v1)
-  MAGI_ENDPOINT=http://localhost:11434/v1
-  MAGI_MODEL=qwen2.5-coder:7b
-  MAGI_API_KEY=
-  ```
-  *(Compatible with LM Studio on `http://localhost:1234/v1`, vLLM on `http://localhost:8000/v1`, LocalAI, etc.)*
-
-* **Cloud Providers (Online):**
-  ```env
-  # OpenAI
-  MAGI_ENDPOINT=https://api.openai.com/v1
-  MAGI_MODEL=gpt-4o-mini
-  MAGI_API_KEY=sk-...
-
-  # DeepSeek
-  MAGI_ENDPOINT=https://api.deepseek.com/v1
-  MAGI_MODEL=deepseek-chat
-  MAGI_API_KEY=sk-...
-
-  # Google Gemini (via official OpenAI-compatible endpoint)
-  MAGI_ENDPOINT=https://generativelanguage.googleapis.com/v1beta/openai
-  MAGI_MODEL=gemini-2.5-flash
-  MAGI_API_KEY=AIza...
-  ```
-
-* **Anthropic Claude (via OpenAI Proxy):**
-  Because direct Anthropic APIs use proprietary headers, in an agnostic architecture you simply route Claude requests through any standard OpenAI-compatible gateway (e.g. OpenRouter or LiteLLM):
-  ```env
-  # Via OpenRouter
-  MAGI_ENDPOINT=https://openrouter.ai/api/v1
-  MAGI_MODEL=anthropic/claude-3.5-sonnet
-  MAGI_API_KEY=sk-or-...
-  ```
-
-* **Offline Mock Mode (Zero configuration):**
-  If no endpoint or API keys are specified, MAGI runs in deterministic Mock mode for offline testing and CI workflows.
-
-### 2. Granular Per-Node Overrides
-
-You can optionally assign different models, endpoints, or keys to specific Trinity personas:
-```env
-# E.g. Melchior on local Ollama, Balthasar on security-specialized model
-MELCHIOR_MODEL=qwen2.5-coder:7b
-BALTHASAR_ENDPOINT=https://api.openai.com/v1
-BALTHASAR_MODEL=gpt-4o
-BALTHASAR_API_KEY=sk-...
+### 8. Run as Model Context Protocol (MCP) Server (`mcp`)
+Connect MAGI to autonomous IDE coding assistants (Antigravity, Claude Desktop, Cursor):
+```powershell
+.\magi.ps1 mcp
 ```
 
 ---
 
-## Environment Variables Reference
+## 3. Next Steps
 
-| Variable | Description | Default |
-| :--- | :--- | :--- |
-| `SPACETIMEDB_URI` | SpacetimeDB connection endpoint | `http://spacetimedb:3000` |
-| `SPACETIMEDB_DATABASE` | Published database module name | `magi-system` |
-| `MAGI_TIMEOUT_SECONDS` | Maximum timeout per node request in seconds | `60` |
-| `MAGI_AUTHOR` | Author/operator identifier for deliberations | `developer@magi` |
-| `MAGI_LANG` | Language override (`es`, `en`, or auto-detected) | Auto |
-| `MAGI_ENDPOINT` | Global OpenAI-compatible API base URL | `http://localhost:11434/v1` |
-| `MAGI_MODEL` | Global model name for all 3 nodes | `default` |
-| `MAGI_API_KEY` | Global API key (optional for local models) | None |
-| `{NODE}_ENDPOINT` | Granular override (`MELCHIOR_ENDPOINT`, etc.) | Falls back to global |
-| `{NODE}_MODEL` | Granular override (`BALTHASAR_MODEL`, etc.) | Falls back to global |
-| `{NODE}_API_KEY` | Granular override (`CASPER_API_KEY`, etc.) | Falls back to global |
+* **[Model & API Configuration Guide](CONFIGURATION.md):** Configure hot-standby failover models, OpenRouter subagent workers, local models (Ollama), and granular per-node API keys.
+* **[CLI & TUI Manual](CLI_AND_TUI.md):** Complete reference for flags (`--rounds`, `--output json`, `--skill`), semantic exit codes, and MCP tools.
+* **[Operations Runbook](OPERATIONS.md):** Container lifecycle, volume persistence, purging databases, and troubleshooting.

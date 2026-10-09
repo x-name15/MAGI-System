@@ -72,17 +72,70 @@
 **Context:** System prompt strings for Melchior, Balthasar, and Casper were previously hardcoded in Rust source code constants inside `orchestrator.rs`. Modifying personas required recompiling the Rust binary.
 
 **Decision:**
-- Extracted all persona instructions into external Markdown files (`client/skills/magi-system/melchior.md`, `balthasar.md`, `casper.md`).
+- Extracted all persona instructions into external Markdown files (`client/skills/magi-system/melchoir-1.md`, `balthasar-2.md`, `casper-3.md`).
 - Created `PromptLoader` in `client/src/skills/mod.rs` to load system prompts dynamically at runtime with fallback support.
 - Added `--skill <path>` CLI flag to allow operators to inject custom team rules or coding guidelines at runtime.
 
 ---
 
-## 2026-10-02: Documentation Overhaul & Roadmap Realignment
+## 2026-10-07: Specialized MCP Suite & Git Diff Auditing (v0.2.1)
 
-**Context:** Previous documentation contained legacy command references and an outdated roadmap with conflicting milestone priorities.
+**Context:** AI coding assistants (Antigravity, Claude Desktop) need granular, specialized tools rather than a single generic entry point, and developers need to audit git diffs prior to commits.
 
 **Decision:**
-- Reorganized `docs/` into modular categories: `architecture/`, `guides/`, and `rfcs/`.
-- Created dedicated manuals: `GETTING_STARTED.md`, `CLI_AND_TUI.md`, `OPERATIONS.md`.
-- Realigned `ROADMAP.md` around four high-impact local-developer milestones: v0.1.3 (Foundation), v0.2.0 (Streaming & Local DX), v0.3.0 (Codebase Awareness), and v1.0.0 (Standalone Distribution).
+- Created dedicated subcommands `magi diff` (working tree, `--staged`, `--branch`) and `magi debate` (architectural dilemmas).
+- Expanded MCP server over stdio to provide 5 purpose-built tools: `deliberate_with_magi`, `audit_git_changes`, `triage_incident_with_magi`, `check_security_veto`, and `debate_technical_dilemma`.
+
+---
+
+## 2026-10-07: Automatic Project Context Discovery & Noise Filtering (v0.2.2)
+
+**Context:** Auditing git diffs and files without project context resulted in vague or generic LLM evaluations, while lockfiles (`Cargo.lock`, `package-lock.json`) exhausted LLM token budgets.
+
+**Decision:**
+- Implemented `discovery_helper` to inspect workspace manifests (`Cargo.toml`, `package.json`, `go.mod`, `pyproject.toml`) and inject ecosystem traits into prompts.
+- Implemented `noise_filter_helper` to strip lockfiles, minified bundles, and generated artifacts from git diff payloads automatically.
+
+---
+
+## 2026-10-08: Degraded Quorum Resilience & Exponential Backoff Retries (v0.2.3)
+
+**Context:** Transient network disconnects, HTTP 429 rate limits, and individual provider outages would cause entire multi-round deliberations to abort, frustrating developers.
+
+**Decision:**
+- Implemented **Degraded Quorum Tolerance (2-of-3)**: If 1 node fails, MAGI synthesizes an offline neutral position and continues debate with the remaining 2 nodes, resolving via majority consensus.
+- Added smart exponential backoff with jitter and dynamic `Retry-After` header parsing.
+- Added 60/40 head-tail context truncation safeguarding against LLM context window overflows.
+
+---
+
+## 2026-10-08: Dual-Archive Hybrid Loader & Interactive History Browser (v0.2.4)
+
+**Context:** Developers required a convenient way to browse past deliberation records in the terminal, even when SpacetimeDB was stopped, wiped, or offline.
+
+**Decision:**
+- Created `history_loader` to merge records from both SpacetimeDB tables and local `./deliberations/*.md` reports.
+- Built a full-screen interactive dual-pane TUI History Browser (`magi history`) using `ratatui` and `crossterm` with live search filtering (`/`) and modal Markdown report reading (`Enter`).
+- Added non-interactive ANSI table rendering (`--table` or piped output) and hybrid `magi show <id>`.
+
+---
+
+## 2026-10-08: Hot-Standby Failover Brain & Truncation Recovery (v0.2.5)
+
+**Context:** Primary models occasionally hit API credit exhaustion (HTTP 402) mid-session or suffered provider outages, while reasoning models truncated output tokens before closing JSON braces.
+
+**Decision:**
+- Implemented `MAGI_FALLBACK_MODEL` hot-standby failover circuit: automatically switches to a backup model without failing the deliberation.
+- Configurable `MAGI_MAX_TOKENS` per node and globally.
+- Implemented `json_repair_helper` to automatically recover and balance cut-off JSON braces, brackets, and quotes.
+- Added native `magi purge` subcommand and eliminated test report leakage to host storage.
+
+---
+
+## 2026-10-09: OpenRouter Server Tools & Subagent Worker Ecosystem (v0.2.6)
+
+**Context:** Frontier models spend unnecessary tokens and latency on micro-level sub-tasks, while OpenRouter introduced native server tools (`openrouter:subagent`).
+
+**Decision:**
+- Integrated native OpenRouter server tools allowing nodes to delegate micro-analytical tasks to faster worker models (`systems_analyst`, `security_scanner`, `pragmatic_evaluator`).
+- Added anti-recursion protection, live console worker telemetry, and fully internationalized fallback conclusions across `client/i18n/es.json` and `en.json`.
