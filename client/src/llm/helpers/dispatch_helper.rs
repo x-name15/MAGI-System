@@ -101,15 +101,27 @@ pub async fn dispatch_llm_request(
     let start_time = Instant::now();
 
     // Context size safeguard: if payload is gigantic, apply head-tail truncation
-    let effective_context = if context_payload.len() > max_context_chars {
+    let char_count = context_payload.chars().count();
+    let effective_context = if char_count > max_context_chars {
         let keep_head = (max_context_chars as f64 * 0.6) as usize;
         let keep_tail = max_context_chars.saturating_sub(keep_head);
-        let truncated_count = context_payload.len().saturating_sub(keep_head + keep_tail);
+        let head_end = context_payload
+            .char_indices()
+            .nth(keep_head)
+            .map(|(idx, _)| idx)
+            .unwrap_or(context_payload.len());
+        let tail_start = context_payload
+            .char_indices()
+            .rev()
+            .nth(keep_tail.saturating_sub(1))
+            .map(|(idx, _)| idx)
+            .unwrap_or(0);
+        let truncated_count = char_count.saturating_sub(keep_head + keep_tail);
         format!(
             "{}\n\n[... TRUNCATED {} CHARACTERS BY MAGI CONTEXT SAFEGUARD ...]\n\n{}",
-            &context_payload[..keep_head],
+            &context_payload[..head_end],
             truncated_count,
-            &context_payload[context_payload.len().saturating_sub(keep_tail)..]
+            &context_payload[tail_start..]
         )
     } else {
         context_payload.to_string()

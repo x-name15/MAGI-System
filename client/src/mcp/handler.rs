@@ -13,6 +13,7 @@ use crate::core::helpers::calculate_local_consensus;
 use crate::core::MagiOrchestrator;
 use crate::i18n::Language;
 use crate::mcp::protocol::*;
+use crate::ui::helpers::layout_helper::safe_truncate_str;
 use crate::ui::JsonOutput;
 use serde_json::json;
 
@@ -407,8 +408,8 @@ impl McpHandler {
         let lang = Language::detect(context);
         let consensus = calculate_local_consensus(&evaluations, lang);
 
-        let title = if prompt.len() > 60 {
-            format!("{}...", &prompt[..57])
+        let title = if prompt.chars().count() > 60 {
+            format!("{}...", safe_truncate_str(prompt, 57))
         } else {
             prompt.to_string()
         };
@@ -851,10 +852,16 @@ impl McpHandler {
         let lang = Language::detect(dilemma);
         let consensus = calculate_local_consensus(&evaluations, lang);
 
+        let title = if dilemma.chars().count() > 60 {
+            format!("{}...", safe_truncate_str(dilemma, 57))
+        } else {
+            dilemma.to_string()
+        };
+
         let delib_id = self
             .record_and_persist(
                 "TECHNICAL_DEBATE",
-                dilemma,
+                &title,
                 dilemma,
                 "DILEMMA",
                 context.unwrap_or(dilemma),

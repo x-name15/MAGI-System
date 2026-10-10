@@ -20,6 +20,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added live console notifications (`[{node_id}] Subagent worker invoked: {worker} (task: {task_name})`) to track tool execution transparently when models delegate tasks to worker models.
 
 ### Fixed
+- **UTF-8 Char Boundary Safety & Multi-Byte Slice Panics (`ui::helpers::layout_helper`, `ui::history_browser`, `main`, `mcp::handler`, `ui::tui`, `llm::helpers::dispatch_helper`):**
+  - Introduced `safe_truncate_str` and `truncate_with_ellipsis` ensuring string slicing is strictly executed along valid UTF-8 character boundaries.
+  - Eliminated runtime panics (`byte index is not a char boundary`) triggered by multi-byte characters (Spanish `'ñ'`, accents, symbols, emojis) during title and node argument truncations across the Ratatui history browser, TUI, and CLI outputs.
+- **Hybrid History Report Viewer & Auto-Synthesized Markdown Persistence (`ui::helpers::history_loader`, `ui::history_browser`, `ui::report`):**
+  - Implemented `get_or_synthesize_markdown` to reconstruct full Markdown reports on the fly from structured SpacetimeDB records and node evaluations whenever disk files are missing.
+  - Fixed `"No full markdown report content found"` modal viewer error when inspecting past deliberations executed via MCP.
+  - Capped report filename slugs to 48 characters in `save_host_deliberation_report_opts`, preventing Windows NTFS / OS `MAX_PATH` and `MAX_COMPONENT_LEN` write failures on lengthy prompts.
+  - `load_hybrid` now automatically self-heals by persisting missing Markdown reports to `deliberations/`, keeping host disk and database in two-way synchronization.
 - **I18n Localized Rationale Fallbacks & Contextual Debate Posture (`i18n`, `core::orchestrator`, `llm::helpers`):**
   - Replaced hardcoded English fallback (`"Evaluated under node analytical lens"`) with localized i18n entries (`default_rationale` and `maintains_position_rationale`) in `client/i18n/es.json` and `client/i18n/en.json`.
   - Expanded JSON parser field aliases (`conclusion`, `summary`, `justification`, `verdict_rationale`, `decision`) in `parse_llm_json_response`.

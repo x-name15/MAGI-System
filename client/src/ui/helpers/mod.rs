@@ -11,7 +11,10 @@ pub mod monitor_helper;
 pub use history_loader::{
     load_hybrid, parse_deliberation_markdown, DeliberationHistoryEntry, NodePositionSummary,
 };
-pub use layout_helper::{render_triangular_screen, str_display_width};
+#[allow(unused_imports)]
+pub use layout_helper::{
+    render_triangular_screen, safe_truncate_str, str_display_width, truncate_with_ellipsis,
+};
 pub use monitor_helper::{
     format_blackout_monitor, format_deliberating_monitor, format_node_monitor,
 };

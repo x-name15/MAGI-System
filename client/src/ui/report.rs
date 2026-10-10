@@ -7,6 +7,7 @@
 
 use crate::i18n::{get_bundle, Language};
 use crate::llm::NodeEvaluation;
+use crate::ui::helpers::layout_helper::safe_truncate_str;
 use std::fs;
 use std::path::PathBuf;
 
@@ -117,10 +118,11 @@ pub fn save_host_deliberation_report_opts(
         })
         .collect::<String>();
     let clean_title = sanitized_title.trim_matches('_');
-    let slug = if clean_title.is_empty() {
+    let truncated_slug = safe_truncate_str(clean_title, 48).trim_end_matches('_');
+    let slug = if truncated_slug.is_empty() {
         "deliberation"
     } else {
-        clean_title
+        truncated_slug
     };
     let filename = format!("deliberation_{:04}_{}.md", effective_id, slug);
     let filepath = dir.join(filename);

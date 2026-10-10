@@ -29,6 +29,7 @@ use std::fs;
 use std::io::IsTerminal;
 use std::path::PathBuf;
 use std::time::Duration;
+use ui::helpers::layout_helper::safe_truncate_str;
 use ui::NervTheme;
 
 // ── Semantic exit codes ───────────────────────────────────────────────────────
@@ -1403,8 +1404,8 @@ async fn dispatch_command(
 
             let title = format!(
                 "Debate: {}",
-                if query.len() > 60 {
-                    format!("{}...", &query[..57])
+                if query.chars().count() > 60 {
+                    format!("{}...", safe_truncate_str(&query, 57))
                 } else {
                     query.clone()
                 }

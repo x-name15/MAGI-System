@@ -5,6 +5,7 @@
 //! and node positions with zero latency.
 
 use crate::ui::helpers::history_loader::DeliberationHistoryEntry;
+use crate::ui::helpers::layout_helper::safe_truncate_str;
 use comfy_table::modifiers::UTF8_ROUND_CORNERS;
 use comfy_table::presets::UTF8_FULL;
 use comfy_table::{Attribute, Cell, Color as TColor, ContentArrangement, Table as ComfyTable};
@@ -339,8 +340,11 @@ fn render_browser_ui(f: &mut Frame, state: &BrowserUiState) {
             };
 
             let title_max = body_chunks[0].width.saturating_sub(26).max(10) as usize;
-            let short_title = if entry.title.len() > title_max {
-                format!("{}…", &entry.title[..title_max.saturating_sub(1)])
+            let short_title = if entry.title.chars().count() > title_max {
+                format!(
+                    "{}…",
+                    safe_truncate_str(&entry.title, title_max.saturating_sub(1))
+                )
             } else {
                 entry.title.clone()
             };
@@ -444,8 +448,8 @@ fn render_browser_ui(f: &mut Frame, state: &BrowserUiState) {
                 ]));
 
                 if !node.argument.is_empty() {
-                    let preview = if node.argument.len() > 140 {
-                        format!("   {}…", &node.argument[..137])
+                    let preview = if node.argument.chars().count() > 140 {
+                        format!("   {}…", safe_truncate_str(&node.argument, 137))
                     } else {
                         format!("   {}", node.argument)
                     };
@@ -521,10 +525,14 @@ fn render_browser_ui(f: &mut Frame, state: &BrowserUiState) {
             let area = centered_rect(88, 88, f.area());
             f.render_widget(Clear, area);
 
-            let content = entry
-                .raw_content
-                .as_deref()
-                .unwrap_or("No full markdown report content found.");
+            let synthesized;
+            let content = match entry.raw_content.as_deref() {
+                Some(raw) if !raw.trim().is_empty() => raw,
+                _ => {
+                    synthesized = entry.get_or_synthesize_markdown();
+                    &synthesized
+                }
+            };
 
             let report_lines: Vec<Line> = content
                 .lines()

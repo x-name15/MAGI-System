@@ -4,6 +4,7 @@
 //! directory and SpacetimeDB in-memory tables. Ensures that past decisions remain
 //! inspectable and searchable even if the database container is offline or purged.
 
+use crate::ui::helpers::layout_helper::safe_truncate_str;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -55,6 +56,57 @@ impl DeliberationHistoryEntry {
         } else {
             (&self.verdict, "ℹ")
         }
+    }
+
+    /// Returns the full raw markdown content if present, or synthesizes a clean Markdown report
+    /// from structured DB fields and node votes if no disk file was available.
+    pub fn get_or_synthesize_markdown(&self) -> String {
+        if let Some(ref raw) = self.raw_content {
+            if !raw.trim().is_empty() {
+                return raw.clone();
+            }
+        }
+
+        // Synthesize full Markdown report from structured database metadata
+        let mut md = format!(
+            "# MAGI Trinity Deliberation #{:04}: {}\n\n",
+            self.id, self.title
+        );
+        md.push_str(&format!("- **Category**: {}\n", self.category));
+        md.push_str(&format!("- **Context Type**: {}\n", self.context_type));
+        md.push_str(&format!("- **Consensus Verdict**: **{}**\n", self.verdict));
+        if !self.summary.is_empty() {
+            md.push_str(&format!("- **Summary**: {}\n", self.summary));
+        }
+        md.push_str("\n---\n\n## Trinity Node Evaluations\n\n");
+
+        if self.node_votes.is_empty() {
+            md.push_str("*(No individual node evaluation records found)*\n");
+        } else {
+            for node in &self.node_votes {
+                md.push_str(&format!(
+                    "### {} — Vote: `{}` (Risk: {}/10)\n\n",
+                    node.node_id, node.vote, node.risk_score
+                ));
+                if node.confidence > 0.0 {
+                    md.push_str(&format!(
+                        "- **Confidence**: {:.0}%\n",
+                        node.confidence * 100.0
+                    ));
+                }
+                if !node.model.is_empty() {
+                    md.push_str(&format!("- **Model**: `{}`\n", node.model));
+                }
+                if !node.argument.is_empty() {
+                    md.push_str(&format!(
+                        "\n#### Analysis / Rationale:\n\n{}\n\n",
+                        node.argument
+                    ));
+                }
+            }
+        }
+
+        md
     }
 }
 
@@ -394,7 +446,45 @@ pub async fn load_hybrid(
     // 2. Load from SpacetimeDB and enrich/insert
     if let Some(client) = db_client {
         let db_entries = load_from_spacetimedb(client, limit).await;
-        for db_entry in db_entries {
+        for mut db_entry in db_entries {
+            // Ensure raw_content is always populated (synthesize from DB if disk file is missing)
+            if db_entry.raw_content.is_none() {
+                let synthesized = db_entry.get_or_synthesize_markdown();
+                db_entry.raw_content = Some(synthesized.clone());
+
+                // Automatically persist missing Markdown file to host disk
+                if !map.contains_key(&db_entry.id) {
+                    if !deliberations_dir.exists() {
+                        let _ = fs::create_dir_all(deliberations_dir);
+                    }
+                    let sanitized = db_entry
+                        .title
+                        .to_lowercase()
+                        .chars()
+                        .map(|c| {
+                            if c.is_alphanumeric() || c == '-' {
+                                c
+                            } else {
+                                '_'
+                            }
+                        })
+                        .collect::<String>();
+                    let clean = sanitized.trim_matches('_');
+                    let truncated_slug = safe_truncate_str(clean, 48).trim_end_matches('_');
+                    let slug = if truncated_slug.is_empty() {
+                        "deliberation"
+                    } else {
+                        truncated_slug
+                    };
+                    let fname = format!("deliberation_{:04}_{}.md", db_entry.id, slug);
+                    let target_path = deliberations_dir.join(fname);
+                    if !target_path.exists() {
+                        let _ = fs::write(&target_path, &synthesized);
+                        db_entry.file_path = Some(target_path);
+                    }
+                }
+            }
+
             map.entry(db_entry.id)
                 .and_modify(|existing| {
                     if existing.verdict.is_empty() {
@@ -402,6 +492,12 @@ pub async fn load_hybrid(
                     }
                     if existing.node_votes.is_empty() {
                         existing.node_votes = db_entry.node_votes.clone();
+                    }
+                    if existing.raw_content.is_none() {
+                        existing.raw_content = db_entry.raw_content.clone();
+                    }
+                    if existing.file_path.is_none() {
+                        existing.file_path = db_entry.file_path.clone();
                     }
                 })
                 .or_insert(db_entry);
@@ -464,5 +560,45 @@ No credential exposure found.
         assert_eq!(parsed.node_votes[0].risk_score, 2);
         assert_eq!(parsed.node_votes[1].node_id, "Balthasar-2");
         assert_eq!(parsed.node_votes[1].risk_score, 1);
+    }
+
+    #[test]
+    fn test_get_or_synthesize_markdown() {
+        let entry = DeliberationHistoryEntry {
+            id: 99,
+            title: "Test DB Deliberation".to_string(),
+            category: "DILEMMA".to_string(),
+            context_type: "DILEMMA".to_string(),
+            verdict: "APPROVED_MAJORITY".to_string(),
+            summary: "2-1 consensus reached.".to_string(),
+            status: "RESOLVED".to_string(),
+            node_votes: vec![
+                NodePositionSummary {
+                    node_id: "Melchior-1".to_string(),
+                    vote: "APPROVE".to_string(),
+                    risk_score: 3,
+                    confidence: 0.9,
+                    model: "anthropic/claude".to_string(),
+                    argument: "Solid architectural pattern.".to_string(),
+                },
+                NodePositionSummary {
+                    node_id: "Balthasar-2".to_string(),
+                    vote: "REJECT".to_string(),
+                    risk_score: 6,
+                    confidence: 0.8,
+                    model: "openai/gpt-4o".to_string(),
+                    argument: "Potential race condition.".to_string(),
+                },
+            ],
+            file_path: None,
+            raw_content: None,
+        };
+
+        let synthesized = entry.get_or_synthesize_markdown();
+        assert!(synthesized.contains("# MAGI Trinity Deliberation #0099: Test DB Deliberation"));
+        assert!(synthesized.contains("- **Consensus Verdict**: **APPROVED_MAJORITY**"));
+        assert!(synthesized.contains("### Melchior-1 — Vote: `APPROVE` (Risk: 3/10)"));
+        assert!(synthesized.contains("Solid architectural pattern."));
+        assert!(synthesized.contains("### Balthasar-2 — Vote: `REJECT` (Risk: 6/10)"));
     }
 }

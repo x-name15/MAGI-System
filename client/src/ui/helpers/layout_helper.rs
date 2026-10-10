@@ -70,6 +70,28 @@ pub fn render_triangular_screen(
     }
 }
 
+/// Truncates a string slice safely at character boundaries up to `max_chars`.
+/// Never panics on multibyte UTF-8 characters (e.g. Spanish 'ñ', accents, CJK, emojis).
+pub fn safe_truncate_str(s: &str, max_chars: usize) -> &str {
+    match s.char_indices().nth(max_chars) {
+        None => s,
+        Some((idx, _)) => &s[..idx],
+    }
+}
+
+/// Truncates a string to at most `max_chars` characters, appending `ellipsis` (e.g. "…" or "...") if truncated.
+/// Safely respects Unicode character boundaries.
+#[allow(dead_code)]
+pub fn truncate_with_ellipsis(s: &str, max_chars: usize, ellipsis: &str) -> String {
+    let char_count = s.chars().count();
+    if char_count <= max_chars {
+        s.to_string()
+    } else {
+        let budget = max_chars.saturating_sub(ellipsis.chars().count());
+        format!("{}{}", safe_truncate_str(s, budget), ellipsis)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -78,5 +100,23 @@ mod tests {
     fn test_str_display_width() {
         assert_eq!(str_display_width("ASCII"), 5);
         assert_eq!(str_display_width("質問"), 4);
+    }
+
+    #[test]
+    fn test_safe_truncate_str_utf8() {
+        let spanish = "Mantengo el voto NEUTRAL: diseño de arquitectura con migración";
+        // 'diseño' contains 'ñ' which is 2 bytes (0xc3, 0xb1)
+        let truncated = safe_truncate_str(spanish, 30);
+        assert!(truncated.chars().count() <= 30);
+        assert_eq!(safe_truncate_str("hello", 10), "hello");
+        assert_eq!(safe_truncate_str("hello", 3), "hel");
+    }
+
+    #[test]
+    fn test_truncate_with_ellipsis() {
+        let text = "Mantengo el voto NEUTRAL tras el debate cruzado, con confianza moderada. La consulta es una solicitud de análisis de principios de diseño";
+        let res = truncate_with_ellipsis(text, 50, "…");
+        assert!(res.ends_with('…'));
+        assert_eq!(res.chars().count(), 50);
     }
 }

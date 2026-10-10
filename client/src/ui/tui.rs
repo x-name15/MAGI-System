@@ -7,6 +7,7 @@
 use crate::config::MagiConfig;
 use crate::core::MagiOrchestrator;
 use crate::db::SpacetimeClient;
+use crate::ui::helpers::layout_helper::safe_truncate_str;
 use crate::ui::intent::{process_user_intent, InferredIntent};
 use crate::ui::nerv_theme::NervTheme;
 use colored::*;
@@ -99,8 +100,8 @@ pub async fn run_interactive_session(
                                 transcript.push("│ (No deliberation records found)".to_string());
                             } else {
                                 for r in &records {
-                                    let short_title = if r.title.len() > 28 {
-                                        format!("{}...", &r.title[..25])
+                                    let short_title = if r.title.chars().count() > 28 {
+                                        format!("{}...", safe_truncate_str(&r.title, 25))
                                     } else {
                                         r.title.clone()
                                     };
