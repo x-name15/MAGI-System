@@ -8,6 +8,7 @@ MAGI System is a **personal developer tool and tactical AI consensus companion**
 
 | Version | Status | Focus | Core Deliverables |
 | :--- | :--- | :--- | :--- |
+| **0.2.7** | **Pending** | Dual-Mode Live Telemetry TUI Monitor | Shared state bus (`.magi_telemetry.json` / IPC socket) allowing terminal TUI (`.\magi.ps1 tui`) to act as a real-time visual monitor while the MCP stdio daemon runs background deliberations, rendering Melchior, Balthasar, and Casper consensus deliberations live without breaking stdio JSON-RPC streams. |
 | **0.2.6** | **Completed** | Subagents, Server Tools & Localized Consensus | OpenRouter server tools (`openrouter:subagent`, `openrouter:web_search`), specialized worker personas (`systems_analyst`, `security_scanner`, `pragmatic_evaluator`), live worker telemetry, and localized debate fallbacks. |
 | **0.2.5** | **Completed** | Hot-Standby Failover & Truncation Recovery | Hot-standby backup models (`MAGI_FALLBACK_MODEL`), configurable token limits (`MAGI_MAX_TOKENS`), JSON truncation recovery, native `magi purge`, and test isolation. |
 | **0.2.4** | **Completed** | Interactive History Explorer & Hybrid Archive | Unified SpacetimeDB + disk reader for `deliberations/`, interactive Ratatui history browser (`magi history`), and hybrid `magi show <id>`. |
